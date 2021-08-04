@@ -21,8 +21,8 @@ func parse() {
 		}
 	}
 
-	printFuncTable()
-	printSymbolList()
+	// printFuncTable()
+	// printSymbolList()
 }
 
 func parseStatement() TokenType {
@@ -36,11 +36,9 @@ func parseStatement() TokenType {
 		parseVar()
 
 	case TokenTypeIdentifier:
-		// fmt.Println(SymbolTypeVar, SymbolTypeVar, curScope)
-
-		if getSymbolNode(token.Lexem, SymbolTypeVar, curScope) != nil {
+		if getSymbolNode(token.Lexem, curScope) != nil {
 			// 赋值语句
-			parseAssignment()
+			parseAssignment(token)
 		} else if getFuncByName(token.Lexem) != nil {
 			// 函数调用
 			addICodeNodeSourceLine(curScope, token.strLine)
@@ -79,6 +77,8 @@ func parseReturn() {
 	var token Token
 	token = nextToken()
 
+	addICodeNodeSourceLine(curScope, token.strLine)
+
 	if token.Lexem != ";" {
 		backToken()
 
@@ -90,6 +90,7 @@ func parseReturn() {
 		token = nextToken()
 		checkToken(&token, TokenTypeSemicolon)
 	}
+	addICodeNodeInstruction(curScope, InstrTypeRet)
 }
 
 // 表达式
@@ -178,13 +179,15 @@ func parseTerm() {
 
 		var instrType InstrType = InstrTypeInvalid
 		switch operatorType {
-		case operatorTypeAdd:
+		case operatorTypeMul:
 			instrType = InstrTypeMul
-		case operatorTypeSub:
+		case operatorTypeDiv:
 			instrType = InstrTypeDiv
 		default:
 			instrType = InstrTypeInvalid
 		}
+
+		utils.Check(instrType != InstrTypeInvalid, "instrType is InstrTypeInvalid!")
 
 		instrIndex = addICodeNodeInstruction(curScope, instrType)
 		addOperandVar(curScope, instrIndex, TempVar0SymbolIndex)
@@ -202,6 +205,8 @@ func parseFactor() {
 	var token Token
 	token = nextToken()
 
+	// fmt.Printf("parseFactor: %+v\n", token)
+
 	switch token.Type {
 	case TokenTypeInt:
 		instrIndex = addICodeNodeInstruction(curScope, InstrTypePush)
@@ -216,13 +221,12 @@ func parseFactor() {
 		strIndex := addstr(token.Lexem)
 		addOperandStr(curScope, instrIndex, strIndex)
 	case TokenTypeIdentifier:
+		symbolNode := getSymbolNode(token.Lexem, curScope)
 
-		symbolNode := getSymbolNode(token.Lexem, SymbolTypeVar, curScope)
 		if symbolNode != nil {
 			// 变量
 			instrIndex = addICodeNodeInstruction(curScope, InstrTypePush)
 			addOperandVar(curScope, instrIndex, symbolNode.index)
-
 		} else {
 			// 函数
 			funcNode := getFuncByName(token.Lexem)
@@ -266,8 +270,6 @@ func parseFunc() {
 		checkToken(&token, TokenTypeComma)
 		token = nextToken()
 	}
-
-	// fmt.Println("paramList:", paramList)
 
 	funcNode := getFuncByName(funcName)
 	if funcNode != nil {
@@ -352,12 +354,15 @@ func parseFuncCall(funcName string) {
 }
 
 // 赋值语句
-func parseAssignment() {
+func parseAssignment(token Token) {
 
-	var token Token
+	symbol := getSymbolNode(token.Lexem, curScope)
+	// fmt.Printf("%+v\n", symbol)
 
 	token = nextToken()
 	checkToken(&token, TokenTypeOperator)
+
+	addICodeNodeSourceLine(curScope, token.strLine)
 
 	if token.Lexem != "=" {
 		utils.Exit(token.LineNumber, "invalid operator "+token.Lexem)
@@ -367,4 +372,12 @@ func parseAssignment() {
 
 	token = nextToken()
 	checkToken(&token, TokenTypeSemicolon)
+
+	var instrIndex = InstrTypeInvalid
+	instrIndex = addICodeNodeInstruction(curScope, InstrTypePop)
+	addOperandVar(curScope, instrIndex, TempVar0SymbolIndex)
+
+	instrIndex = addICodeNodeInstruction(curScope, InstrTypeMov)
+	addOperandVar(curScope, instrIndex, symbol.index)
+	addOperandVar(curScope, instrIndex, TempVar0SymbolIndex)
 }

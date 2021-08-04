@@ -1,6 +1,7 @@
 package zcomplier
 
 import (
+	"../../utils"
 	"bufio"
 	"fmt"
 	"io"
@@ -28,8 +29,13 @@ func loadSourceFile(sourceFilename string) (lines []string) {
 
 func Complie(sourceFilename string) {
 	// 添加2个临时变量
-	TempVar0SymbolIndex = addSymbol("_T0", SymbolTypeVar, GlobalScope)
-	TempVar1SymbolIndex = addSymbol("_T1", SymbolTypeVar, GlobalScope)
+	TempVar0SymbolIndex = addSymbol(registerT0, SymbolTypeVar, GlobalScope)
+	TempVar1SymbolIndex = addSymbol(registerT1, SymbolTypeVar, GlobalScope)
+
+	suffix := sourceFilename[len(sourceFilename)-3:]
+	if suffix != srcFileSuffix {
+		utils.ExitWithErrMsg("source file suffix should be: " + srcFileSuffix)
+	}
 
 	// 读取源文件
 	lines := loadSourceFile(sourceFilename)
@@ -40,6 +46,9 @@ func Complie(sourceFilename string) {
 	// 语法分析
 	parse()
 
+	var outputFilename string
+	outputFilename = sourceFilename[:len(sourceFilename)-3] + outFileSuffix
+
 	// 代码生成
-	generateCode()
+	generateCode(outputFilename)
 }

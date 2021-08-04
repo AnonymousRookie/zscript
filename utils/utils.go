@@ -39,3 +39,15 @@ func Exit(lineNum int, errmsg string) {
 
 	os.Exit(-1)
 }
+
+func ExitWithErrMsg(err string) {
+	fmt.Printf("[error] %s\n", err)
+	os.Exit(-1)
+}
+
+func Check(cond bool, err string) {
+	if !cond {
+		fmt.Printf("[error] %s\n", err)
+		os.Exit(-1)
+	}
+}

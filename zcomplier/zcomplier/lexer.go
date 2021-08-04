@@ -260,11 +260,12 @@ func curToken() *Token {
 	return &token
 }
 
-func backToken() {
+func backToken() Token {
 	if tokenIndex == 0 {
-		return
+		return tokens[tokenIndex]
 	}
 	tokenIndex--
+	return tokens[tokenIndex]
 }
 
 func checkToken(token *Token, tokenType TokenType) {

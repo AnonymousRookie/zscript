@@ -1,5 +1,10 @@
 package zcomplier
 
+import (
+	// "fmt"
+	"strings"
+)
+
 type InstrType int
 
 // 指令类型
@@ -18,6 +23,7 @@ const (
 
 	InstrTypeCall
 	InstrTypeRet
+	InstrTypeExit
 )
 
 // 操作数类型
@@ -54,13 +60,26 @@ type ICodeNode struct {
 }
 
 type ICodeInstr struct {
-	instr    InstrType // 指令
+	instr    InstrType // 指令类型
 	operands []Operand // 操作数
 }
 
 type ICodeNodeList []ICodeNode
 
 var FuncICodeNodes map[int]ICodeNodeList = make(map[int]ICodeNodeList)
+
+var instrMap = map[InstrType]string{
+	InstrTypeMov:  "Mov",
+	InstrTypeAdd:  "Add",
+	InstrTypeSub:  "Sub",
+	InstrTypeMul:  "Mul",
+	InstrTypeDiv:  "Div",
+	InstrTypeJmp:  "Jmp",
+	InstrTypePush: "Push",
+	InstrTypePop:  "Pop",
+	InstrTypeCall: "Call",
+	InstrTypeRet:  "Ret",
+}
 
 func addICodeNode(funcIndex int, iCodeNode ICodeNode) int {
 	iCodeNodeList, ok := FuncICodeNodes[funcIndex]
@@ -84,6 +103,14 @@ func getICodeNode(funcIndex int, iCodeNodeIndex int) *ICodeNode {
 	return &iCodeNodeList[iCodeNodeIndex]
 }
 
+func getIcodeNodeList(funcIndex int) *ICodeNodeList {
+	iCodeNodeList, ok := FuncICodeNodes[funcIndex]
+	if !ok {
+		return nil
+	}
+	return &iCodeNodeList
+}
+
 // 添加中间代码指令
 func addICodeNodeInstruction(funcIndex int, instr InstrType) int {
 	iCodeInstr := ICodeInstr{instr, make([]Operand, 0)}
@@ -93,6 +120,8 @@ func addICodeNodeInstruction(funcIndex int, instr InstrType) int {
 
 // 添加标注指令的源代码行
 func addICodeNodeSourceLine(funcIndex int, sourceLine string) {
+	sourceLine = strings.TrimSpace(sourceLine)
+	// fmt.Println("sourceLine:", sourceLine)
 	iCodeNode := ICodeNode{ICodeNodeTypeSourceLine, sourceLine}
 	addICodeNode(funcIndex, iCodeNode)
 }
@@ -124,7 +153,7 @@ func addOperandStr(funcIndex int, instrIndex int, strIndex int) {
 }
 
 func addOperandVar(funcIndex int, instrIndex int, symbolIndex int) {
-	operand := Operand{OperandTypeString, symbolIndex}
+	operand := Operand{OperandTypeVar, symbolIndex}
 	addOperand(funcIndex, instrIndex, operand)
 }
 

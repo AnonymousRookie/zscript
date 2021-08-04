@@ -34,13 +34,27 @@ func addSymbol(identifier string, symbolType SymbolType, socpeIndex int) int {
 	return index
 }
 
-func getSymbolNode(identifier string, symbolType SymbolType, socpeIndex int) *SymbolNode {
+func getSymbolNode(identifier string, socpeIndex int) *SymbolNode {
 	for e := symbolList.Front(); e != nil; e = e.Next() {
 		if sn, ok := e.Value.(*SymbolNode); ok {
-			if sn.identifier == identifier && sn.symbolType == symbolType && sn.socpeIndex == socpeIndex {
+			if sn.identifier == identifier && sn.socpeIndex == socpeIndex {
 				return sn
 			}
 		}
+	}
+	return nil
+}
+
+func getSymbolNodeByIndex(symbolIndex int) *SymbolNode {
+	var i int = 0
+	for e := symbolList.Front(); e != nil; e = e.Next() {
+		if i == symbolIndex {
+			sn, ok := e.Value.(*SymbolNode)
+			if ok {
+				return sn
+			}
+		}
+		i++
 	}
 	return nil
 }
