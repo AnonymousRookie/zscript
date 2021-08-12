@@ -1,6 +1,6 @@
 # zcomplier
 
-zcomplier负责对zscript文件(.zs)进行词法分析、语法分析，并生成中间代码文件。
+zcomplier负责对zscript文件(.zs)进行词法分析、语法分析，并生成zvm汇编代码文件(.zasm)。
 
 ### 特性
 

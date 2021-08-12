@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	// "runtime"
+	"bufio"
+	"io"
 )
 
 func IsNumeric(r rune) bool {
@@ -49,5 +51,24 @@ func Check(cond bool, err string) {
 	if !cond {
 		fmt.Printf("[error] %s\n", err)
 		os.Exit(-1)
+	}
+}
+
+// 将sourceFilename文件中的所有行读入到lines中
+func LoadSourceFile(sourceFilename string) (lines []string) {
+	sourceFile, err := os.Open(sourceFilename)
+	if err != nil {
+		fmt.Println("loadSourceFile err!")
+		return lines
+	}
+	defer sourceFile.Close()
+
+	sourceReader := bufio.NewReader(sourceFile)
+	for {
+		line, err := sourceReader.ReadString('\n')
+		lines = append(lines, line)
+		if err == io.EOF {
+			return lines
+		}
 	}
 }

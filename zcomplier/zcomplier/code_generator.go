@@ -95,7 +95,7 @@ func generateFuncNode(funcNode *FuncNode, ret *[]string) {
 					case OperandTypeInt:
 						str = strconv.FormatInt(int64(operand.Val.(int)), 10)
 					case OperandTypeFloat:
-						str = strconv.FormatFloat(float64(operand.Val.(float32)), 'E', -1, 64)
+						str = strconv.FormatFloat(float64(operand.Val.(float32)), 'f', 3, 64)
 					case OperandTypeString:
 						str = "\"" + getStrByIndex(operand.Val.(int)) + "\""
 					case OperandTypeVar:
