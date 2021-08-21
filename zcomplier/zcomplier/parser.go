@@ -1,21 +1,29 @@
 package zcomplier
 
 import (
-	"../../utils"
 	"fmt"
 	"strconv"
+
+	"zscript/utils"
 )
 
 const (
 	GlobalScope = 0 // 函数外
 )
 
-var curScope int = GlobalScope
+type Parser struct {
+	curScope int
+	lexer    *Lexer
+}
 
-func parse() {
+func NewParser(l *Lexer) *Parser {
+	return &Parser{curScope: GlobalScope, lexer: l}
+}
+
+func (parser *Parser) parse() {
 
 	for {
-		tokenType := parseStatement()
+		tokenType := parser.parseStatement()
 		if tokenType == TokenTypeEndOfStream {
 			break
 		}
@@ -25,112 +33,112 @@ func parse() {
 	// printSymbolList()
 }
 
-func parseStatement() TokenType {
-	token := nextToken()
+func (parser *Parser) parseStatement() TokenType {
+	token := parser.lexer.nextToken()
 
 	switch token.Type {
 	case TokenTypeEndOfStream:
 		fmt.Println("parseStatement() TokenTypeEndOfStream")
 
 	case TokenTypeVar:
-		parseVar()
+		parser.parseVar()
 
 	case TokenTypeIdentifier:
-		if getSymbolNode(token.Lexem, curScope) != nil {
+		if getSymbolNode(token.Lexem, parser.curScope) != nil {
 			// 赋值语句
-			parseAssignment(token)
+			parser.parseAssignment(token)
 		} else if getFuncByName(token.Lexem) != nil {
 			// 函数调用
-			addICodeNodeSourceLine(curScope, token.strLine)
-			parseFuncCall(token.Lexem)
+			addICodeNodeSourceLine(parser.curScope, token.strLine)
+			parser.parseFuncCall(token.Lexem)
 		} else {
 			utils.Exit(token.LineNumber, "invalid identifier "+token.Lexem)
 		}
 
 	case TokenTypeReturn:
-		parseReturn()
+		parser.parseReturn()
 
 	case TokenTypeFunc:
-		parseFunc()
+		parser.parseFunc()
 
 	case TokenTypeOpenCurlyBrace:
-		parseBlock()
+		parser.parseBlock()
 	}
 
 	return token.Type
 }
 
-func parseVar() {
+func (parser *Parser) parseVar() {
 	var token Token
 
-	token = nextToken()
-	checkToken(&token, TokenTypeIdentifier)
+	token = parser.lexer.nextToken()
+	parser.lexer.checkToken(&token, TokenTypeIdentifier)
 
 	// 将变量添加到SymbolTable中
-	addSymbol(token.Lexem, SymbolTypeVar, curScope)
+	addSymbol(token.Lexem, SymbolTypeVar, parser.curScope)
 
-	token = nextToken()
-	checkToken(&token, TokenTypeSemicolon)
+	token = parser.lexer.nextToken()
+	parser.lexer.checkToken(&token, TokenTypeSemicolon)
 }
 
-func parseReturn() {
+func (parser *Parser) parseReturn() {
 	var token Token
-	token = nextToken()
+	token = parser.lexer.nextToken()
 
-	addICodeNodeSourceLine(curScope, token.strLine)
+	addICodeNodeSourceLine(parser.curScope, token.strLine)
 
 	if token.Lexem != ";" {
-		backToken()
+		parser.lexer.backToken()
 
-		parseExpr()
+		parser.parseExpr()
 
-		instrIndex := addICodeNodeInstruction(curScope, InstrTypePop)
-		addOperandReg(curScope, instrIndex, OperandTypeReg)
+		instrIndex := addICodeNodeInstruction(parser.curScope, InstrTypePop)
+		addOperandReg(parser.curScope, instrIndex, registerTypeRetVal)
 
-		token = nextToken()
-		checkToken(&token, TokenTypeSemicolon)
+		token = parser.lexer.nextToken()
+		parser.lexer.checkToken(&token, TokenTypeSemicolon)
 	}
-	addICodeNodeInstruction(curScope, InstrTypeRet)
+	addICodeNodeInstruction(parser.curScope, InstrTypeRet)
 }
 
 // 表达式
-func parseExpr() {
-	parseSubExpr()
+func (parser *Parser) parseExpr() {
+	parser.parseSubExpr()
 	for {
 
-		token := nextToken()
+		token := parser.lexer.nextToken()
 		if token.Type != TokenTypeOperator {
-			backToken()
+			parser.lexer.backToken()
 			break
 		}
-		parseSubExpr()
+		parser.parseSubExpr()
 	}
 }
 
 // 子表达式(A+B-C)
-func parseSubExpr() {
+func (parser *Parser) parseSubExpr() {
 	var instrIndex int
 
-	parseTerm()
+	parser.parseTerm()
 
 	for {
 
-		token := nextToken()
-		operatorType := getOperatorType(token)
+		token := parser.lexer.nextToken()
+		operatorType := parser.lexer.getOperatorType(token)
 		if token.Type != TokenTypeOperator || (operatorType != operatorTypeAdd && operatorType != operatorTypeSub) {
-			backToken()
+			parser.lexer.backToken()
 			break
 		}
 
-		parseTerm()
+		parser.parseTerm()
 
 		// 取出第一个操作数存入_T1
-		instrIndex = addICodeNodeInstruction(curScope, InstrTypePop)
-		addOperandVar(curScope, instrIndex, TempVar1SymbolIndex)
+		instrIndex = addICodeNodeInstruction(parser.curScope, InstrTypePop)
+		addOperandReg(parser.curScope, instrIndex, registerTypeT1)
 
 		// 取出第一个操作数存入_T0
-		instrIndex = addICodeNodeInstruction(curScope, InstrTypePop)
-		addOperandVar(curScope, instrIndex, TempVar0SymbolIndex)
+		instrIndex = addICodeNodeInstruction(parser.curScope, InstrTypePop)
+		addOperandReg(parser.curScope, instrIndex, registerTypeT0)
 
 		var instrType InstrType = InstrTypeInvalid
 		switch operatorType {
@@ -142,40 +150,40 @@ func parseSubExpr() {
 			instrType = InstrTypeInvalid
 		}
 
-		instrIndex = addICodeNodeInstruction(curScope, instrType)
-		addOperandVar(curScope, instrIndex, TempVar0SymbolIndex)
-		addOperandVar(curScope, instrIndex, TempVar1SymbolIndex)
+		instrIndex = addICodeNodeInstruction(parser.curScope, instrType)
+		addOperandReg(parser.curScope, instrIndex, registerTypeT0)
+		addOperandReg(parser.curScope, instrIndex, registerTypeT1)
 
 		// 把结果存入_T0
-		instrIndex = addICodeNodeInstruction(curScope, InstrTypePush)
-		addOperandVar(curScope, instrIndex, TempVar0SymbolIndex)
+		instrIndex = addICodeNodeInstruction(parser.curScope, InstrTypePush)
+		addOperandReg(parser.curScope, instrIndex, registerTypeT0)
 	}
 }
 
 // 子表达式中的项(a*b/c)
-func parseTerm() {
+func (parser *Parser) parseTerm() {
 	var instrIndex int
 
-	parseFactor()
+	parser.parseFactor()
 
 	for {
 
-		token := nextToken()
-		operatorType := getOperatorType(token)
+		token := parser.lexer.nextToken()
+		operatorType := parser.lexer.getOperatorType(token)
 		if token.Type != TokenTypeOperator || (operatorType != operatorTypeMul && operatorType != operatorTypeDiv) {
-			backToken()
+			parser.lexer.backToken()
 			break
 		}
 
-		parseFactor()
+		parser.parseFactor()
 
 		// 取出第一个操作数存入_T1
-		instrIndex = addICodeNodeInstruction(curScope, InstrTypePop)
-		addOperandVar(curScope, instrIndex, TempVar1SymbolIndex)
+		instrIndex = addICodeNodeInstruction(parser.curScope, InstrTypePop)
+		addOperandReg(parser.curScope, instrIndex, registerTypeT1)
 
 		// 取出第一个操作数存入_T0
-		instrIndex = addICodeNodeInstruction(curScope, InstrTypePop)
-		addOperandVar(curScope, instrIndex, TempVar0SymbolIndex)
+		instrIndex = addICodeNodeInstruction(parser.curScope, InstrTypePop)
+		addOperandReg(parser.curScope, instrIndex, registerTypeT0)
 
 		var instrType InstrType = InstrTypeInvalid
 		switch operatorType {
@@ -189,127 +197,127 @@ func parseTerm() {
 
 		utils.Check(instrType != InstrTypeInvalid, "instrType is InstrTypeInvalid!")
 
-		instrIndex = addICodeNodeInstruction(curScope, instrType)
-		addOperandVar(curScope, instrIndex, TempVar0SymbolIndex)
-		addOperandVar(curScope, instrIndex, TempVar1SymbolIndex)
+		instrIndex = addICodeNodeInstruction(parser.curScope, instrType)
+		addOperandReg(parser.curScope, instrIndex, registerTypeT0)
+		addOperandReg(parser.curScope, instrIndex, registerTypeT1)
 
 		// 把结果存入_T0
-		instrIndex = addICodeNodeInstruction(curScope, InstrTypePush)
-		addOperandVar(curScope, instrIndex, TempVar0SymbolIndex)
+		instrIndex = addICodeNodeInstruction(parser.curScope, InstrTypePush)
+		addOperandReg(parser.curScope, instrIndex, registerTypeT0)
 	}
 }
 
 // 项中的因子
-func parseFactor() {
+func (parser *Parser) parseFactor() {
 	var instrIndex int
 	var token Token
-	token = nextToken()
+	token = parser.lexer.nextToken()
 
 	// fmt.Printf("parseFactor: %+v\n", token)
 
 	switch token.Type {
 	case TokenTypeInt:
-		instrIndex = addICodeNodeInstruction(curScope, InstrTypePush)
+		instrIndex = addICodeNodeInstruction(parser.curScope, InstrTypePush)
 		i, _ := strconv.Atoi(token.Lexem)
-		addOperandInt(curScope, instrIndex, i)
+		addOperandInt(parser.curScope, instrIndex, i)
 	case TokenTypeFloat:
-		instrIndex = addICodeNodeInstruction(curScope, InstrTypePush)
+		instrIndex = addICodeNodeInstruction(parser.curScope, InstrTypePush)
 		f, _ := strconv.ParseFloat(token.Lexem, 32)
-		addOperandFloat(curScope, instrIndex, float32(f))
+		addOperandFloat(parser.curScope, instrIndex, float32(f))
 	case TokenTypeString:
-		instrIndex = addICodeNodeInstruction(curScope, InstrTypePush)
+		instrIndex = addICodeNodeInstruction(parser.curScope, InstrTypePush)
 		strIndex := addstr(token.Lexem)
-		addOperandStr(curScope, instrIndex, strIndex)
+		addOperandStr(parser.curScope, instrIndex, strIndex)
 	case TokenTypeIdentifier:
-		symbolNode := getSymbolNode(token.Lexem, curScope)
+		symbolNode := getSymbolNode(token.Lexem, parser.curScope)
 
 		if symbolNode != nil {
 			// 变量
-			instrIndex = addICodeNodeInstruction(curScope, InstrTypePush)
-			addOperandVar(curScope, instrIndex, symbolNode.index)
+			instrIndex = addICodeNodeInstruction(parser.curScope, InstrTypePush)
+			addOperandVar(parser.curScope, instrIndex, symbolNode.index)
 		} else {
 			// 函数
 			funcNode := getFuncByName(token.Lexem)
 			if funcNode != nil {
-				parseFuncCall(token.Lexem)
-				instrIndex = addICodeNodeInstruction(curScope, InstrTypePush)
-				addOperandReg(curScope, instrIndex, OperandTypeReg)
+				parser.parseFuncCall(token.Lexem)
+				instrIndex = addICodeNodeInstruction(parser.curScope, InstrTypePush)
+				addOperandReg(parser.curScope, instrIndex, registerTypeRetVal)
 			}
 		}
 
 	case TokenTypeOpenParen:
-		parseExpr()
-		token = nextToken()
-		checkToken(&token, TokenTypeCloseParen)
+		parser.parseExpr()
+		token = parser.lexer.nextToken()
+		parser.lexer.checkToken(&token, TokenTypeCloseParen)
 
 	default:
 		utils.Exit(token.LineNumber, "invalid input: "+token.Lexem)
 	}
 }
 
-func parseFunc() {
+func (parser *Parser) parseFunc() {
 
 	var token Token
-	token = nextToken()
-	checkToken(&token, TokenTypeIdentifier)
+	token = parser.lexer.nextToken()
+	parser.lexer.checkToken(&token, TokenTypeIdentifier)
 	funcName := token.Lexem
 	addFunc(funcName)
 
-	token = nextToken()
-	checkToken(&token, TokenTypeOpenParen)
+	token = parser.lexer.nextToken()
+	parser.lexer.checkToken(&token, TokenTypeOpenParen)
 
 	// 函数参数列表
 	var paramList []string
-	token = nextToken()
+	token = parser.lexer.nextToken()
 	for token.Lexem != ")" {
 		paramList = append(paramList, token.Lexem)
-		token = nextToken()
+		token = parser.lexer.nextToken()
 		if token.Lexem == ")" {
 			break
 		}
-		checkToken(&token, TokenTypeComma)
-		token = nextToken()
+		parser.lexer.checkToken(&token, TokenTypeComma)
+		token = parser.lexer.nextToken()
 	}
 
 	funcNode := getFuncByName(funcName)
 	if funcNode != nil {
 		funcNode.ParamCount = len(paramList)
-		curScope = funcNode.FuncIndex
-		// fmt.Println("curScope:", funcNode.FuncIndex)
+		parser.curScope = funcNode.FuncIndex
+		// fmt.Println("parser.curScope:", funcNode.FuncIndex)
 	}
 
 	// 将函数参数添加到SymbolTable中
 	for i := 0; i < len(paramList); i++ {
-		addSymbol(paramList[i], SymbolTypeParam, curScope)
+		addSymbol(paramList[len(paramList)-i-1], SymbolTypeParam, parser.curScope)
 	}
 
-	token = nextToken()
-	checkToken(&token, TokenTypeOpenCurlyBrace)
+	token = parser.lexer.nextToken()
+	parser.lexer.checkToken(&token, TokenTypeOpenCurlyBrace)
 
-	parseBlock()
+	parser.parseBlock()
 
-	curScope = GlobalScope
+	parser.curScope = GlobalScope
 }
 
-func parseBlock() {
+func (parser *Parser) parseBlock() {
 	for {
-		token := nextToken()
+		token := parser.lexer.nextToken()
 		if token.Lexem == "}" {
 			return
 		}
 
 		if token.Type == TokenTypeEndOfStream {
-			backToken()
-			checkToken(curToken(), TokenTypeCloseCurlyBrace)
+			parser.lexer.backToken()
+			parser.lexer.checkToken(parser.lexer.curToken(), TokenTypeCloseCurlyBrace)
 		}
 
-		backToken()
-		parseStatement()
+		parser.lexer.backToken()
+		parser.parseStatement()
 	}
 }
 
 // 函数调用
-func parseFuncCall(funcName string) {
+func (parser *Parser) parseFuncCall(funcName string) {
 	var token Token
 
 	funcNode := getFuncByName(funcName)
@@ -317,67 +325,68 @@ func parseFuncCall(funcName string) {
 		return
 	}
 
-	token = nextToken()
-	checkToken(&token, TokenTypeOpenParen)
+	token = parser.lexer.nextToken()
+	parser.lexer.checkToken(&token, TokenTypeOpenParen)
 
 	var paramCount int = 0
 
 	// 函数参数
 	for {
-		token = nextToken()
+		token = parser.lexer.nextToken()
 		if token.Lexem == ")" {
 			break
 		}
 
-		backToken()
+		parser.lexer.backToken()
 
-		parseExpr()
+		parser.parseExpr()
 		paramCount++
 
-		token = nextToken()
+		token = parser.lexer.nextToken()
 		if token.Lexem == ")" {
 			break
 		}
-		checkToken(&token, TokenTypeComma)
+		parser.lexer.checkToken(&token, TokenTypeComma)
 	}
 
 	if paramCount != funcNode.ParamCount {
 		var err string = "too few parameters!"
 		if paramCount > funcNode.ParamCount {
 			err = "too mutch parameters!"
+			fmt.Println(paramCount, funcNode.ParamCount)
 		}
 		utils.Exit(token.LineNumber, err)
 	}
 
-	instrIndex := addICodeNodeInstruction(curScope, InstrTypeCall)
-	addOperandFuncIndex(curScope, instrIndex, funcNode.FuncIndex)
+	instrIndex := addICodeNodeInstruction(parser.curScope, InstrTypeCall)
+	addOperandFuncIndex(parser.curScope, instrIndex, funcNode.FuncIndex)
 }
 
 // 赋值语句
-func parseAssignment(token Token) {
+func (parser *Parser) parseAssignment(token Token) {
 
-	symbol := getSymbolNode(token.Lexem, curScope)
+	symbol := getSymbolNode(token.Lexem, parser.curScope)
 	// fmt.Printf("%+v\n", symbol)
 
-	token = nextToken()
-	checkToken(&token, TokenTypeOperator)
+	token = parser.lexer.nextToken()
+	parser.lexer.checkToken(&token, TokenTypeOperator)
 
-	addICodeNodeSourceLine(curScope, token.strLine)
+	addICodeNodeSourceLine(parser.curScope, token.strLine)
 
 	if token.Lexem != "=" {
 		utils.Exit(token.LineNumber, "invalid operator "+token.Lexem)
 	}
 
-	parseExpr()
+	parser.parseExpr()
 
-	token = nextToken()
-	checkToken(&token, TokenTypeSemicolon)
+	token = parser.lexer.nextToken()
+	parser.lexer.checkToken(&token, TokenTypeSemicolon)
 
 	var instrIndex = InstrTypeInvalid
-	instrIndex = addICodeNodeInstruction(curScope, InstrTypePop)
-	addOperandVar(curScope, instrIndex, TempVar0SymbolIndex)
+	instrIndex = addICodeNodeInstruction(parser.curScope, InstrTypePop)
+	addOperandReg(parser.curScope, instrIndex, registerTypeT0)
 
-	instrIndex = addICodeNodeInstruction(curScope, InstrTypeMov)
-	addOperandVar(curScope, instrIndex, symbol.index)
-	addOperandVar(curScope, instrIndex, TempVar0SymbolIndex)
+	instrIndex = addICodeNodeInstruction(parser.curScope, InstrTypeMov)
+	addOperandVar(parser.curScope, instrIndex, symbol.index)
+	addOperandReg(parser.curScope, instrIndex, registerTypeT0)
 }

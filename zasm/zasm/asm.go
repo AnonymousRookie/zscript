@@ -1,11 +1,12 @@
 package zasm
 
 import (
-	"../../utils"
 	"bytes"
 	"encoding/binary"
 	"fmt"
 	"os"
+
+	"zscript/utils"
 )
 
 func Asm(sourceFilename string) {
@@ -19,10 +20,12 @@ func Asm(sourceFilename string) {
 	lines := utils.LoadSourceFile(sourceFilename)
 
 	// 词法分析
-	lexicalAnalyze(lines)
+	lexer := NewLexer()
+	lexer.lexicalAnalyze(lines)
 
 	// 语法分析
-	parse()
+	parser := NewParser(lexer)
+	parser.parse()
 
 	// fmt.Printf("header: %+v\n", header)
 	// fmt.Printf("instrStream: %+v\n", instrStream)
@@ -93,6 +96,15 @@ func Asm(sourceFilename string) {
 		binary.Write(buf, binary.LittleEndian, []byte(funcNode.funcName))
 		binary.Write(buf, binary.LittleEndian, funcNode.entryPoint)
 		binary.Write(buf, binary.LittleEndian, funcNode.paramcount)
+		binary.Write(buf, binary.LittleEndian, funcNode.symbolCount)
+		for j := 0; j < int(funcNode.symbolCount); j++ {
+			symbolNode := funcNode.symbolNodes[j]
+			binary.Write(buf, binary.LittleEndian, symbolNode.index)
+			binary.Write(buf, binary.LittleEndian, symbolNode.len)
+			binary.Write(buf, binary.LittleEndian, []byte(symbolNode.identifier))
+			binary.Write(buf, binary.LittleEndian, symbolNode.symbolType)
+			binary.Write(buf, binary.LittleEndian, symbolNode.funcIndex)
+		}
 	}
 
 	fp.Write(buf.Bytes())

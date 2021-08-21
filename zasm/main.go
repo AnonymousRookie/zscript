@@ -1,9 +1,9 @@
 package main
 
 import (
-	"./zasm"
 	"fmt"
 	"os"
+	"zscript/zasm/zasm"
 )
 
 func printUsage() {

@@ -5,51 +5,58 @@ import (
 	"strconv"
 )
 
-var curFuncIndex int32 = 0      // 函数索引
-var curFuncParamCount int32 = 0 // 当前函数参数个数
+type Parser struct {
+	curFuncIndex      int32 // 函数索引
+	curFuncParamCount int32 // 当前函数参数个数
+	lexer             *Lexer
+}
 
-func parse() {
+func NewParser(l *Lexer) *Parser {
+	return &Parser{curFuncIndex: 0, curFuncParamCount: 0, lexer: l}
+}
+
+func (parser *Parser) parse() {
 
 	header.isExistMainFunc = false
 
 	for {
-		tokenType := parseStatement()
+		tokenType := parser.parseStatement()
 		if tokenType == TokenTypeEndOfStream {
 			break
 		}
 	}
 }
 
-func parseStatement() TokenType {
-	token := nextToken()
+func (parser *Parser) parseStatement() TokenType {
+	token := parser.lexer.nextToken()
 
 	switch token.Type {
 	case TokenTypeEndOfStream:
 		fmt.Println("parseStatement() TokenTypeEndOfStream")
 
 	case TokenTypeVar:
-		parseVar()
+		parser.parseVar()
 
 	case TokenTypeParam:
-		parseParam()
+		parser.parseParam()
 
 	case TokenTypeInstr:
-		parseInstr()
+		parser.parseInstr()
 
 	case TokenTypeFunc:
-		parseFunc()
+		parser.parseFunc()
 
 	case TokenTypeOpenCurlyBrace:
-		parseBlock()
+		parser.parseBlock()
 	}
 
 	return token.Type
 }
 
-func parseInstr() {
-	backToken()
-	token := nextToken()
-	instrType, instrOpCount := getInstrType(&token)
+func (parser *Parser) parseInstr() {
+	parser.lexer.backToken()
+	token := parser.lexer.nextToken()
+	instrType, instrOpCount := parser.lexer.getInstrType(&token)
 
 	// fmt.Printf("parseInstr: %+v\n", token)
 
@@ -58,7 +65,7 @@ func parseInstr() {
 	instr.opCount = instrOpCount
 
 	for i := 0; i < int(instrOpCount); i++ {
-		token := nextToken()
+		token := parser.lexer.nextToken()
 
 		var op Operand
 
@@ -77,20 +84,23 @@ func parseInstr() {
 			op.opVal = strindex
 		case TokenTypeFunc:
 			op.opType = OperandTypeFuncIndex
-			op.opVal = curFuncIndex
+			op.opVal = parser.curFuncIndex
 		case TokenTypeIdentifier:
-			node := getSymbol(token.Lexem, curFuncIndex)
+			node := getSymbol(token.Lexem, parser.curFuncIndex)
 			if node != nil {
 				op.opType = OperandTypeIdentifierIndex
 				op.opVal = node.index
 			} else {
-				funcNode := getFuncNodeByName(token.Lexem)
-				op.opType = OperandTypeFuncIndex
-				op.opVal = funcNode.index
+				reg, ok := regTypeMap[token.Lexem]
+				if ok {
+					op.opType = OperandTypeReg
+					op.opVal = reg
+				} else {
+					funcNode := getFuncNodeByName(token.Lexem)
+					op.opType = OperandTypeFuncIndex
+					op.opVal = funcNode.index
+				}
 			}
-		case TokenTypeRetVal:
-			op.opType = OperandTypeReg
-			op.opVal = int32(0)
 		default:
 			fmt.Printf("unexpected token type, token:%+v\n", token)
 		}
@@ -101,71 +111,71 @@ func parseInstr() {
 
 		// 操作数之间以逗号分隔
 		if i != int(instrOpCount-1) {
-			token := nextToken()
-			checkToken(&token, TokenTypeComma)
+			token := parser.lexer.nextToken()
+			parser.lexer.checkToken(&token, TokenTypeComma)
 		}
 	}
 
 	istrIndex := addInstr(instr)
 
 	// 更新函数入口点（函数第一个指令的索引）
-	funcNode := getFuncNodeByIndex(curFuncIndex)
+	funcNode := getFuncNodeByIndex(parser.curFuncIndex)
 	// fmt.Printf("parseInstr: %+v\n", funcNode)
 	if funcNode.entryPoint < 0 {
 		funcNode.entryPoint = istrIndex
 	}
 }
 
-func parseFunc() {
+func (parser *Parser) parseFunc() {
 	var token Token
-	token = nextToken()
-	checkToken(&token, TokenTypeIdentifier)
+	token = parser.lexer.nextToken()
+	parser.lexer.checkToken(&token, TokenTypeIdentifier)
 	funcName := token.Lexem
 	funcIndex := addFuncNode(funcName)
-	curFuncIndex = funcIndex
+	parser.curFuncIndex = funcIndex
 
 	if funcName == "main" {
 		header.isExistMainFunc = true
 		header.mainFuncIndex = funcIndex
 	}
 
-	token = nextToken()
-	checkToken(&token, TokenTypeOpenCurlyBrace)
+	token = parser.lexer.nextToken()
+	parser.lexer.checkToken(&token, TokenTypeOpenCurlyBrace)
 
-	parseBlock()
+	parser.parseBlock()
 
-	curFuncIndex = 0
-	curFuncParamCount = 0
+	parser.curFuncIndex = 0
+	parser.curFuncParamCount = 0
 }
 
-func parseVar() {
-	token := nextToken()
-	checkToken(&token, TokenTypeIdentifier)
-	addSymbol(token.Lexem, SymbolTypeVar, curFuncIndex)
-	// fmt.Printf("parseVar token:%+v, %v\n", token, curFuncIndex)
+func (parser *Parser) parseVar() {
+	token := parser.lexer.nextToken()
+	parser.lexer.checkToken(&token, TokenTypeIdentifier)
+	addSymbol(token.Lexem, SymbolTypeVar, parser.curFuncIndex)
+	// fmt.Printf("parseVar token:%+v, %v\n", token, parser.curFuncIndex)
 }
 
-func parseParam() {
-	token := nextToken()
-	checkToken(&token, TokenTypeIdentifier)
-	addSymbol(token.Lexem, SymbolTypeParam, curFuncIndex)
-	funcNode := getFuncNodeByIndex(curFuncIndex)
+func (parser *Parser) parseParam() {
+	token := parser.lexer.nextToken()
+	parser.lexer.checkToken(&token, TokenTypeIdentifier)
+	addSymbol(token.Lexem, SymbolTypeParam, parser.curFuncIndex)
+	funcNode := getFuncNodeByIndex(parser.curFuncIndex)
 	funcNode.paramcount++
 }
 
-func parseBlock() {
+func (parser *Parser) parseBlock() {
 	for {
-		token := nextToken()
+		token := parser.lexer.nextToken()
 		if token.Lexem == "}" {
 			return
 		}
 
 		if token.Type == TokenTypeEndOfStream {
-			token := backToken()
-			checkToken(&token, TokenTypeCloseCurlyBrace)
+			token := parser.lexer.backToken()
+			parser.lexer.checkToken(&token, TokenTypeCloseCurlyBrace)
 		}
 
-		backToken()
-		parseStatement()
+		parser.lexer.backToken()
+		parser.parseStatement()
 	}
 }

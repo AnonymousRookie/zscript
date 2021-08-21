@@ -1,9 +1,10 @@
 package main
 
 import (
-	"./zcomplier"
 	"fmt"
 	"os"
+
+	"zscript/zcomplier/zcomplier"
 )
 
 func printUsage() {

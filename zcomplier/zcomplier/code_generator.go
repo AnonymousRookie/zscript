@@ -1,15 +1,22 @@
 package zcomplier
 
 import (
-	"../../utils"
 	"bufio"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
+
+	"zscript/utils"
 )
 
-func generateCode(outputFilename string) {
+type Generator struct{}
+
+func NewGenerator() *Generator {
+	return &Generator{}
+}
+
+func (gen *Generator) generateCode(outputFilename string) {
 	fmt.Println("Generate: ", outputFilename)
 	outputFile, err := os.OpenFile(outputFilename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 	if err != nil {
@@ -21,17 +28,13 @@ func generateCode(outputFilename string) {
 
 	var ret []string
 
-	ret = append(ret, "; Global variables\n")
-	generateSymbols(0, SymbolTypeVar, &ret)
-
-	var mainFunc *FuncNode
-	ret = append(ret, "\n; Functions\n")
-	for name, node := range FuncTable {
-		if name == "main" {
-			mainFunc = node
-			generateFuncNode(mainFunc, &ret)
+	ret = append(ret, "; Functions\n")
+	for i := 0; i < len(funcTable); i++ {
+		funNode := funcTable[i]
+		if funNode.FuncName == "main" {
+			gen.generateFuncNode(&funNode, &ret)
 		} else {
-			generateFuncNode(node, &ret)
+			gen.generateFuncNode(&funNode, &ret)
 		}
 	}
 
@@ -41,7 +44,7 @@ func generateCode(outputFilename string) {
 	outputWriter.Flush()
 }
 
-func generateSymbols(scope int, symbolType SymbolType, ret *[]string) {
+func (gen *Generator) generateSymbols(scope int, symbolType SymbolType, ret *[]string) {
 	for e := symbolList.Front(); e != nil; e = e.Next() {
 		if sn, ok := e.Value.(*SymbolNode); ok {
 			if sn.symbolType == symbolType && sn.socpeIndex == scope {
@@ -60,14 +63,14 @@ func generateSymbols(scope int, symbolType SymbolType, ret *[]string) {
 	}
 }
 
-func generateFuncNode(funcNode *FuncNode, ret *[]string) {
+func (gen *Generator) generateFuncNode(funcNode *FuncNode, ret *[]string) {
 	var str string
 	str = fmt.Sprintf("Func %s\n{\n", funcNode.FuncName)
 	*ret = append(*ret, str)
 	// 函数参数
-	generateSymbols(funcNode.FuncIndex, SymbolTypeParam, ret)
+	gen.generateSymbols(funcNode.FuncIndex, SymbolTypeParam, ret)
 	// 函数内局部变量
-	generateSymbols(funcNode.FuncIndex, SymbolTypeVar, ret)
+	gen.generateSymbols(funcNode.FuncIndex, SymbolTypeVar, ret)
 
 	iCodeNodeList := getIcodeNodeList(funcNode.FuncIndex)
 	if iCodeNodeList == nil {
@@ -107,7 +110,8 @@ func generateFuncNode(funcNode *FuncNode, ret *[]string) {
 							str = fnode.FuncName
 						}
 					case OperandTypeReg:
-						str = registerReturnVal
+						regType := operand.Val.(int)
+						str, _ = regTypeMap[regType]
 
 					default:
 						utils.ExitWithErrMsg("unexpected OperandType: " + strconv.Itoa(operand.OperandType))

@@ -11,41 +11,46 @@ type FuncNode struct {
 	FuncIndex  int    // 函数索引
 }
 
-var FuncTable map[string]*FuncNode = make(map[string]*FuncNode)
+var funcTable []FuncNode
 
 func addFunc(funcName string) {
-	_, ok := FuncTable[funcName]
-	if ok {
-		fmt.Printf("[error] function redefinition, function name: %s!\n", funcName)
-		os.Exit(-1)
+	for i := 0; i < len(funcTable); i++ {
+		funNode := funcTable[i]
+		if funNode.FuncName == funcName {
+			fmt.Printf("[error] function redefinition, function name: %s!\n", funcName)
+			os.Exit(-1)
+		}
 	}
+
 	var newNode FuncNode
 	newNode.FuncName = funcName
 	newNode.ParamCount = 0
-	newNode.FuncIndex = len(FuncTable) + 1
-	FuncTable[funcName] = &newNode
+	newNode.FuncIndex = len(funcTable) + 1
+	funcTable = append(funcTable, newNode)
 }
 
 func getFuncByName(funcName string) *FuncNode {
-	node, ok := FuncTable[funcName]
-	if ok {
-		return node
+	for i := 0; i < len(funcTable); i++ {
+		if funcTable[i].FuncName == funcName {
+			return &funcTable[i]
+		}
 	}
 	return nil
 }
 
 func getFuncByIndex(funcIndex int) *FuncNode {
-	for _, node := range FuncTable {
-		if node.FuncIndex == funcIndex {
-			return node
+	for i := 0; i < len(funcTable); i++ {
+		funNode := funcTable[i]
+		if funNode.FuncIndex == funcIndex {
+			return &funNode
 		}
 	}
 	return nil
 }
 
 func printFuncTable() {
-	fmt.Println("FuncTable:")
-	for _, node := range FuncTable {
-		fmt.Printf("FuncNode: %+v\n", node)
+	fmt.Println("funcTable:")
+	for _, node := range funcTable {
+		fmt.Printf("funcNode: %+v\n", node)
 	}
 }

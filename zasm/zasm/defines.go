@@ -3,7 +3,24 @@ package zasm
 const (
 	srcFileSuffix = ".zasm"
 	outFileSuffix = ".zse"
+
+	registerT0        = "_T0"
+	registerT1        = "_T1"
+	registerReturnVal = "_RetVal"
 )
+
+const (
+	registerTypeInvalid = iota
+	registerTypeT0
+	registerTypeT1
+	registerTypeRetVal
+)
+
+var regTypeMap = map[string]int32{
+	registerT0:        registerTypeT0,
+	registerT1:        registerTypeT1,
+	registerReturnVal: registerTypeRetVal,
+}
 
 // 指令类型
 type InstrType int32
@@ -76,12 +93,13 @@ type StringTable struct {
 }
 
 type FuncNode struct {
-	index      int32  // 函数索引
-	len        int32  // 函数名长度
-	funcName   string // 函数名称
-	entryPoint int32  // 函数入口点, 函数第一个指令的索引
-	paramcount int32  // 函数参数个数
-
+	index       int32  // 函数索引
+	len         int32  // 函数名长度
+	funcName    string // 函数名称
+	entryPoint  int32  // 函数入口点, 函数第一个指令的索引
+	paramcount  int32  // 函数参数个数
+	symbolCount int32
+	symbolNodes []SymbolNode
 }
 type FuncTable struct {
 	count     int32 // 函数个数
@@ -98,12 +116,13 @@ const (
 
 type SymbolNode struct {
 	index      int32
+	len        int32
 	identifier string
 	symbolType SymbolType
-	funcIndex  int32 // 函数索引
+	funcIndex  int32
 }
 
-var symbolNodes []SymbolNode
+var globalSymbolNodes []SymbolNode
 
 // Header
 var header Header
@@ -117,27 +136,49 @@ var strTable StringTable
 // Function Table
 var funcTable FuncTable
 
-// 返回新增symbol在symbolList中的索引
-func addSymbol(identifier string, symbolType SymbolType, funcIndex int32) int32 {
-	index := len(symbolNodes)
-	node := SymbolNode{int32(index), identifier, symbolType, funcIndex}
-	symbolNodes = append(symbolNodes, node)
+func (funcNode *FuncNode) addFuncSymbol(identifier string, symbolType SymbolType) int32 {
+	index := len(funcNode.symbolNodes)
+	node := SymbolNode{int32(index), int32(len(identifier)), identifier, symbolType, funcNode.index}
+	funcNode.symbolNodes = append(funcNode.symbolNodes, node)
+	funcNode.symbolCount = int32(len(funcNode.symbolNodes))
 	return int32(index)
 }
 
+func addGlobalSymbol(identifier string, symbolType SymbolType, funcIndex int32) int32 {
+	index := len(globalSymbolNodes)
+	node := SymbolNode{int32(index), int32(len(identifier)), identifier, symbolType, funcIndex}
+	globalSymbolNodes = append(globalSymbolNodes, node)
+	return int32(index)
+}
+
+func addSymbol(identifier string, symbolType SymbolType, funcIndex int32) int32 {
+	if funcIndex == 0 {
+		return addGlobalSymbol(identifier, symbolType, funcIndex)
+	} else {
+		funcNode := getFuncNodeByIndex(funcIndex)
+		return funcNode.addFuncSymbol(identifier, symbolType)
+	}
+}
+
 func getSymbol(identifier string, funcIndex int32) *SymbolNode {
-	for i := 0; i < len(symbolNodes); i++ {
-		node := symbolNodes[i]
-		if node.identifier == identifier && node.funcIndex == funcIndex {
-			return &node
+
+	funcNode := getFuncNodeByIndex(funcIndex)
+	if funcNode != nil {
+		for i := 0; i < len(funcNode.symbolNodes); i++ {
+			node := funcNode.symbolNodes[i]
+			if node.identifier == identifier && node.funcIndex == funcIndex {
+				return &node
+			}
 		}
 	}
-	for i := 0; i < len(symbolNodes); i++ {
-		node := symbolNodes[i]
+
+	for i := 0; i < len(globalSymbolNodes); i++ {
+		node := globalSymbolNodes[i]
 		if node.identifier == identifier && node.funcIndex == 0 {
 			return &node
 		}
 	}
+
 	return nil
 }
 
@@ -157,7 +198,7 @@ func addStr(str string) int32 {
 // 返回新增函数的索引
 func addFuncNode(funcName string) int32 {
 	var funcNode FuncNode
-	funcNode.index = int32(len(funcTable.funcNodes))
+	funcNode.index = int32(len(funcTable.funcNodes) + 1)
 	funcNode.funcName = funcName
 	funcNode.len = int32(len(funcName))
 	funcNode.entryPoint = -1

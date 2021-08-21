@@ -1,9 +1,10 @@
 package zasm
 
 import (
-	"../../utils"
 	"fmt"
 	"strings"
+
+	"zscript/utils"
 )
 
 // 有限状态机中的状态
@@ -35,10 +36,9 @@ const (
 	TokenTypeInstr
 
 	// 关键字
-	TokenTypeVar    // Var
-	TokenTypeFunc   // Func
-	TokenTypeParam  // Param
-	TokenTypeRetVal // _RetVal
+	TokenTypeVar   // Var
+	TokenTypeFunc  // Func
+	TokenTypeParam // Param
 
 	// 分隔符
 	TokenTypeComma           // ,
@@ -81,30 +81,34 @@ type Token struct {
 	strLine    string
 }
 
-var tokenIndex int = 0
-var tokens []Token
-
 var lexemTokenTypeMap = map[string]TokenType{
-	"Var":     TokenTypeVar,
-	"Func":    TokenTypeFunc,
-	"Param":   TokenTypeParam,
-	"_RetVal": TokenTypeRetVal,
-	",":       TokenTypeComma,
-	"{":       TokenTypeOpenCurlyBrace,
-	"}":       TokenTypeCloseCurlyBrace,
+	"Var":   TokenTypeVar,
+	"Func":  TokenTypeFunc,
+	"Param": TokenTypeParam,
+	",":     TokenTypeComma,
+	"{":     TokenTypeOpenCurlyBrace,
+	"}":     TokenTypeCloseCurlyBrace,
 }
 
 var tokenTypeLexemTMap = map[TokenType]string{
 	TokenTypeVar:             "Var",
 	TokenTypeFunc:            "Func",
 	TokenTypeParam:           "Param",
-	TokenTypeRetVal:          "_RetVal",
 	TokenTypeComma:           ",",
 	TokenTypeOpenCurlyBrace:  "{",
 	TokenTypeCloseCurlyBrace: "}",
 }
 
-func lexicalAnalyze(lines []string) {
+type Lexer struct {
+	tokenIndex int
+	tokens     []Token
+}
+
+func NewLexer() *Lexer {
+	return &Lexer{tokenIndex: 0}
+}
+
+func (lexer *Lexer) lexicalAnalyze(lines []string) {
 	var curLexem string = ""
 	var isAddCurChar bool = false
 	var isLexemDone bool = false
@@ -193,9 +197,9 @@ func lexicalAnalyze(lines []string) {
 				token.LineNumber = lineIndex + 1
 				token.strLine = line
 				token.Lexem = curLexem
-				updateTokenType(&token, curState)
+				lexer.updateTokenType(&token, curState)
 
-				tokens = append(tokens, token)
+				lexer.tokens = append(lexer.tokens, token)
 
 				curState = LexerStateStart
 				curLexem = ""
@@ -209,14 +213,14 @@ func lexicalAnalyze(lines []string) {
 		token.LineNumber = len(lines)
 		token.strLine = lines[len(lines)-1]
 		token.Lexem = curLexem
-		updateTokenType(&token, curState)
-		tokens = append(tokens, token)
+		lexer.updateTokenType(&token, curState)
+		lexer.tokens = append(lexer.tokens, token)
 	}
 
 	// fmt.Printf("tokens: %+v\n", tokens)
 }
 
-func updateTokenType(token *Token, lexerState int) {
+func (lexer *Lexer) updateTokenType(token *Token, lexerState int) {
 	switch lexerState {
 	case LexerStateInt:
 		token.Type = TokenTypeInt
@@ -248,10 +252,10 @@ func updateTokenType(token *Token, lexerState int) {
 	}
 }
 
-func nextToken() Token {
-	if tokenIndex < len(tokens) {
-		token := tokens[tokenIndex]
-		tokenIndex++
+func (lexer *Lexer) nextToken() Token {
+	if lexer.tokenIndex < len(lexer.tokens) {
+		token := lexer.tokens[lexer.tokenIndex]
+		lexer.tokenIndex++
 		return token
 	}
 	var token Token
@@ -259,15 +263,15 @@ func nextToken() Token {
 	return token
 }
 
-func backToken() Token {
-	if tokenIndex == 0 {
-		return tokens[tokenIndex]
+func (lexer *Lexer) backToken() Token {
+	if lexer.tokenIndex == 0 {
+		return lexer.tokens[lexer.tokenIndex]
 	}
-	tokenIndex--
-	return tokens[tokenIndex]
+	lexer.tokenIndex--
+	return lexer.tokens[lexer.tokenIndex]
 }
 
-func checkToken(token *Token, tokenType TokenType) {
+func (lexer *Lexer) checkToken(token *Token, tokenType TokenType) {
 	var errmsg string
 	var ok bool
 	if token.Type != tokenType {
@@ -292,7 +296,7 @@ func checkToken(token *Token, tokenType TokenType) {
 	}
 }
 
-func getInstrType(token *Token) (instrType InstrType, instrOpCount int32) {
+func (lexer *Lexer) getInstrType(token *Token) (instrType InstrType, instrOpCount int32) {
 	instrType = InstrTypeInvalid
 	instrOpCount = 0
 	tp, ok := instrMap[token.Lexem]
