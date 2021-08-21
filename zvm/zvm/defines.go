@@ -39,7 +39,6 @@ const (
 // Instruction Stream
 // String Table
 // Function Table
-// Host API Call Table
 
 type Header struct {
 	isExistMainFunc bool  // 是否存在main函数
@@ -72,12 +71,13 @@ type StringTable struct {
 }
 
 type FuncNode struct {
-	index      int32  // 函数索引
-	len        int32  // 函数名长度
-	funcName   string // 函数名称
-	entryPoint int32  // 函数入口点, 函数第一个指令的索引
-	paramcount int32  // 函数参数个数
-
+	index       int32  // 函数索引
+	len         int32  // 函数名长度
+	funcName    string // 函数名称
+	entryPoint  int32  // 函数入口点, 函数第一个指令的索引
+	paramcount  int32  // 函数参数个数
+	symbolCount int32
+	symbolNodes []SymbolNode
 }
 type FuncTable struct {
 	count     int32 // 函数个数
@@ -94,21 +94,36 @@ const (
 
 type SymbolNode struct {
 	index      int32
+	len        int32
 	identifier string
 	symbolType SymbolType
-	funcIndex  int32 // 函数索引
+	funcIndex  int32
 }
 
-var symbolNodes []SymbolNode
+const (
+	registerTypeInvalid = iota
+	registerTypeT0
+	registerTypeT1
+	registerTypeRetVal
+)
 
-// Header
-var header Header
+const (
+	registerT0        = "_T0"
+	registerT1        = "_T1"
+	registerReturnVal = "_RetVal"
+)
 
-// Instruction Stream
-var instrStream InstrStream
+const (
+	ZValTypeInvalid = iota
+	ZValTypeInt
+	ZValTypeFloat
+	ZValTypeStr
+)
 
-// String Table
-var strTable StringTable
+type ZVal struct {
+	valType    int32
+	identifier string
+	val        interface{}
+}
 
-// Function Table
-var funcTable FuncTable
+type FuncZVal map[int32]ZVal

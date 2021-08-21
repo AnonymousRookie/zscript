@@ -1,9 +1,10 @@
 package main
 
 import (
-	"./zvm"
 	"fmt"
 	"os"
+
+	"zscript/zvm/zvm"
 )
 
 func printUsage() {
@@ -22,7 +23,9 @@ func main() {
 
 	fmt.Println("filename: ", filename)
 
+	zvm := zvm.NewZvm()
 	zvm.Load(filename)
+	zvm.Run()
 
 	fmt.Println("\nzvm stopped!")
 }
