@@ -344,62 +344,7 @@ func (zvm *Zvm) processCall(instr *Instr) {
 }
 
 func (zvm *Zvm) processAdd(instr *Instr) {
-	dstOp := instr.getOperantByIndex(0)
-	srcOp := instr.getOperantByIndex(1)
-
-	var srcV ZVal
-	if srcOp.opType == OperandTypeReg {
-		srcV = *zvm.getRegVar(srcOp)
-	} else {
-		varIndex := zvm.getZVal(zvm.curFuncIndex, srcOp)
-		srcV = zvm.allFuncZVal[zvm.curFuncIndex][varIndex]
-	}
-
-	if dstOp.opType == OperandTypeReg {
-		dstV := zvm.getRegVar(dstOp)
-
-		fmt.Printf("dstV:%+v\n", dstV)
-		fmt.Printf("srcV:%+v\n", srcV)
-
-		if ZValTypeInt == dstV.valType {
-			if ZValTypeFloat == srcV.valType {
-				dstV.valType = ZValTypeFloat
-				dstV.val = float32(dstV.val.(int32)) + srcV.val.(float32)
-			} else if ZValTypeInt == srcV.valType {
-				dstV.valType = ZValTypeInt
-				dstV.val = dstV.val.(int32) + srcV.val.(int32)
-			}
-		} else if ZValTypeFloat == dstV.valType {
-			dstV.valType = ZValTypeFloat
-			if ZValTypeFloat == srcV.valType {
-				dstV.val = dstV.val.(float32) + srcV.val.(float32)
-			} else if ZValTypeInt == srcV.valType {
-				dstV.val = dstV.val.(float32) + float32(srcV.val.(int32))
-			}
-		}
-	} else {
-		varIndex := zvm.getZVal(zvm.curFuncIndex, dstOp)
-		zval := zvm.allFuncZVal[zvm.curFuncIndex][varIndex]
-
-		if ZValTypeInt == zval.valType {
-			if ZValTypeFloat == srcV.valType {
-				zval.valType = ZValTypeFloat
-				zval.val = float32(zval.val.(int32)) + srcV.val.(float32)
-			} else if ZValTypeInt == srcV.valType {
-				zval.valType = ZValTypeInt
-				zval.val = zval.val.(int32) + srcV.val.(int32)
-			}
-		} else if ZValTypeFloat == zval.valType {
-			zval.valType = ZValTypeFloat
-			if ZValTypeFloat == srcV.valType {
-				zval.val = zval.val.(float32) + srcV.val.(float32)
-			} else if ZValTypeInt == srcV.valType {
-				zval.val = zval.val.(float32) + float32(srcV.val.(int32))
-			}
-		}
-
-		zvm.allFuncZVal[zvm.curFuncIndex][varIndex] = zval
-	}
+	zvm.calc(instr, "+")
 
 	fmt.Printf("processAdd regT0:%+v\n", zvm.regT0)
 	fmt.Printf("processAdd regT1:%+v\n", zvm.regT1)
@@ -407,38 +352,7 @@ func (zvm *Zvm) processAdd(instr *Instr) {
 }
 
 func (zvm *Zvm) processMul(instr *Instr) {
-	dstOp := instr.getOperantByIndex(0)
-	srcOp := instr.getOperantByIndex(1)
-
-	var srcV ZVal
-	if srcOp.opType == OperandTypeReg {
-		srcV = *zvm.getRegVar(srcOp)
-	} else {
-		varIndex := zvm.getZVal(zvm.curFuncIndex, srcOp)
-		srcV = zvm.allFuncZVal[zvm.curFuncIndex][varIndex]
-	}
-
-	if dstOp.opType == OperandTypeReg {
-		dstV := zvm.getRegVar(dstOp)
-		dstV.valType = srcV.valType
-		if ZValTypeInt == dstV.valType {
-			dstV.val = dstV.val.(int32) * srcV.val.(int32)
-		} else if ZValTypeFloat == dstV.valType {
-			dstV.val = dstV.val.(float32) * srcV.val.(float32)
-		}
-
-	} else {
-		varIndex := zvm.getZVal(zvm.curFuncIndex, dstOp)
-		zval := zvm.allFuncZVal[zvm.curFuncIndex][varIndex]
-		zval.valType = srcV.valType
-
-		if ZValTypeInt == zval.valType {
-			zval.val = zval.val.(int32) * srcV.val.(int32)
-		} else if ZValTypeFloat == zval.valType {
-			zval.val = zval.val.(float32) * srcV.val.(float32)
-		}
-		zvm.allFuncZVal[zvm.curFuncIndex][varIndex] = zval
-	}
+	zvm.calc(instr, "*")
 
 	fmt.Printf("processMul regT0:%+v\n", zvm.regT0)
 	fmt.Printf("processMul regT1:%+v\n", zvm.regT1)
@@ -446,38 +360,7 @@ func (zvm *Zvm) processMul(instr *Instr) {
 }
 
 func (zvm *Zvm) processDiv(instr *Instr) {
-	dstOp := instr.getOperantByIndex(0)
-	srcOp := instr.getOperantByIndex(1)
-
-	var srcV ZVal
-	if srcOp.opType == OperandTypeReg {
-		srcV = *zvm.getRegVar(srcOp)
-	} else {
-		varIndex := zvm.getZVal(zvm.curFuncIndex, srcOp)
-		srcV = zvm.allFuncZVal[zvm.curFuncIndex][varIndex]
-	}
-
-	if dstOp.opType == OperandTypeReg {
-		dstV := zvm.getRegVar(dstOp)
-		dstV.valType = srcV.valType
-		if ZValTypeInt == dstV.valType {
-			dstV.val = dstV.val.(int32) / srcV.val.(int32)
-		} else if ZValTypeFloat == dstV.valType {
-			dstV.val = dstV.val.(float32) / srcV.val.(float32)
-		}
-
-	} else {
-		varIndex := zvm.getZVal(zvm.curFuncIndex, dstOp)
-		zval := zvm.allFuncZVal[zvm.curFuncIndex][varIndex]
-		zval.valType = srcV.valType
-
-		if ZValTypeInt == zval.valType {
-			zval.val = zval.val.(int32) / srcV.val.(int32)
-		} else if ZValTypeFloat == zval.valType {
-			zval.val = zval.val.(float32) / srcV.val.(float32)
-		}
-		zvm.allFuncZVal[zvm.curFuncIndex][varIndex] = zval
-	}
+	zvm.calc(instr, "/")
 
 	fmt.Printf("processDiv regT0:%+v\n", zvm.regT0)
 	fmt.Printf("processDiv regT1:%+v\n", zvm.regT1)
@@ -485,6 +368,14 @@ func (zvm *Zvm) processDiv(instr *Instr) {
 }
 
 func (zvm *Zvm) processSub(instr *Instr) {
+	zvm.calc(instr, "-")
+
+	fmt.Printf("processSub regT0:%+v\n", zvm.regT0)
+	fmt.Printf("processSub regT1:%+v\n", zvm.regT1)
+	fmt.Printf("processSub allFuncZVal:%+v\n", zvm.allFuncZVal)
+}
+
+func (zvm *Zvm) calc(instr *Instr, operator string) {
 	dstOp := instr.getOperantByIndex(0)
 	srcOp := instr.getOperantByIndex(1)
 
@@ -496,31 +387,70 @@ func (zvm *Zvm) processSub(instr *Instr) {
 		srcV = zvm.allFuncZVal[zvm.curFuncIndex][varIndex]
 	}
 
+	var zval ZVal
 	if dstOp.opType == OperandTypeReg {
-		dstV := zvm.getRegVar(dstOp)
-		dstV.valType = srcV.valType
-		if ZValTypeInt == dstV.valType {
-			dstV.val = dstV.val.(int32) - srcV.val.(int32)
-		} else if ZValTypeFloat == dstV.valType {
-			dstV.val = dstV.val.(float32) - srcV.val.(float32)
-		}
-
+		zval = *zvm.getRegVar(dstOp)
 	} else {
 		varIndex := zvm.getZVal(zvm.curFuncIndex, dstOp)
-		zval := zvm.allFuncZVal[zvm.curFuncIndex][varIndex]
-		zval.valType = srcV.valType
-
-		if ZValTypeInt == zval.valType {
-			zval.val = zval.val.(int32) - srcV.val.(int32)
-		} else if ZValTypeFloat == zval.valType {
-			zval.val = zval.val.(float32) - srcV.val.(float32)
-		}
-		zvm.allFuncZVal[zvm.curFuncIndex][varIndex] = zval
+		zval = zvm.allFuncZVal[zvm.curFuncIndex][varIndex]
 	}
 
-	fmt.Printf("processSub regT0:%+v\n", zvm.regT0)
-	fmt.Printf("processSub regT1:%+v\n", zvm.regT1)
-	fmt.Printf("processSub allFuncZVal:%+v\n", zvm.allFuncZVal)
+	if ZValTypeInt == zval.valType {
+		if ZValTypeFloat == srcV.valType {
+			zval.valType = ZValTypeFloat
+			if "+" == operator {
+				zval.val = float32(zval.val.(int32)) + srcV.val.(float32)
+			} else if "-" == operator {
+				zval.val = float32(zval.val.(int32)) - srcV.val.(float32)
+			} else if "*" == operator {
+				zval.val = float32(zval.val.(int32)) * srcV.val.(float32)
+			} else if "/" == operator {
+				zval.val = float32(zval.val.(int32)) / srcV.val.(float32)
+			}
+		} else if ZValTypeInt == srcV.valType {
+			zval.valType = ZValTypeInt
+			if "+" == operator {
+				zval.val = zval.val.(int32) + srcV.val.(int32)
+			} else if "-" == operator {
+				zval.val = zval.val.(int32) - srcV.val.(int32)
+			} else if "*" == operator {
+				zval.val = zval.val.(int32) * srcV.val.(int32)
+			} else if "/" == operator {
+				zval.val = zval.val.(int32) / srcV.val.(int32)
+			}
+		}
+	} else if ZValTypeFloat == zval.valType {
+		zval.valType = ZValTypeFloat
+		if ZValTypeFloat == srcV.valType {
+			if "+" == operator {
+				zval.val = zval.val.(float32) + srcV.val.(float32)
+			} else if "-" == operator {
+				zval.val = zval.val.(float32) - srcV.val.(float32)
+			} else if "*" == operator {
+				zval.val = zval.val.(float32) * srcV.val.(float32)
+			} else if "/" == operator {
+				zval.val = zval.val.(float32) / srcV.val.(float32)
+			}
+		} else if ZValTypeInt == srcV.valType {
+			if "+" == operator {
+				zval.val = zval.val.(float32) + float32(srcV.val.(int32))
+			} else if "-" == operator {
+				zval.val = zval.val.(float32) - float32(srcV.val.(int32))
+			} else if "*" == operator {
+				zval.val = zval.val.(float32) * float32(srcV.val.(int32))
+			} else if "/" == operator {
+				zval.val = zval.val.(float32) / float32(srcV.val.(int32))
+			}
+		}
+	}
+
+	if dstOp.opType == OperandTypeReg {
+		dstV := zvm.getRegVar(dstOp)
+		*dstV = zval
+	} else {
+		varIndex := zvm.getZVal(zvm.curFuncIndex, dstOp)
+		zvm.allFuncZVal[zvm.curFuncIndex][varIndex] = zval
+	}
 }
 
 func (zvm *Zvm) processRet() bool {
