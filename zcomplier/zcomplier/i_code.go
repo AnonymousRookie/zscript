@@ -22,19 +22,21 @@ const (
 	InstrTypePop
 
 	InstrTypeCall
+	InstrTypeCallHostApi
 	InstrTypeRet
 	InstrTypeExit
 )
 
 // 操作数类型
 const (
-	OperandTypeInvalid   = iota
-	OperandTypeInt       // 整数
-	OperandTypeFloat     // 浮点数
-	OperandTypeString    // 字符串
-	OperandTypeVar       // 变量
-	OperandTypeFuncIndex // FuncIndex
-	OperandTypeReg       // 寄存器
+	OperandTypeInvalid      = iota
+	OperandTypeInt          // 整数
+	OperandTypeFloat        // 浮点数
+	OperandTypeString       // 字符串
+	OperandTypeVar          // 变量
+	OperandTypeFuncIndex    // FuncIndex
+	OperandTypeHostApiIndex // HostApiIndex
+	OperandTypeReg          // 寄存器
 )
 
 const (
@@ -69,16 +71,17 @@ type ICodeNodeList []ICodeNode
 var FuncICodeNodes map[int]ICodeNodeList = make(map[int]ICodeNodeList)
 
 var instrMap = map[InstrType]string{
-	InstrTypeMov:  "Mov",
-	InstrTypeAdd:  "Add",
-	InstrTypeSub:  "Sub",
-	InstrTypeMul:  "Mul",
-	InstrTypeDiv:  "Div",
-	InstrTypeJmp:  "Jmp",
-	InstrTypePush: "Push",
-	InstrTypePop:  "Pop",
-	InstrTypeCall: "Call",
-	InstrTypeRet:  "Ret",
+	InstrTypeMov:         "Mov",
+	InstrTypeAdd:         "Add",
+	InstrTypeSub:         "Sub",
+	InstrTypeMul:         "Mul",
+	InstrTypeDiv:         "Div",
+	InstrTypeJmp:         "Jmp",
+	InstrTypePush:        "Push",
+	InstrTypePop:         "Pop",
+	InstrTypeCall:        "Call",
+	InstrTypeCallHostApi: "CallHostApi",
+	InstrTypeRet:         "Ret",
 }
 
 func addICodeNode(funcIndex int, iCodeNode ICodeNode) int {
@@ -159,6 +162,11 @@ func addOperandVar(funcIndex int, instrIndex int, symbolIndex int) {
 
 func addOperandFuncIndex(funcIndex int, instrIndex int, opfuncIndex int) {
 	operand := Operand{OperandTypeFuncIndex, opfuncIndex}
+	addOperand(funcIndex, instrIndex, operand)
+}
+
+func addOperandHostApiIndex(funcIndex int, instrIndex int, hostApiIndex int) {
+	operand := Operand{OperandTypeHostApiIndex, hostApiIndex}
 	addOperand(funcIndex, instrIndex, operand)
 }
 

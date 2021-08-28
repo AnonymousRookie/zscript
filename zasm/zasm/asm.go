@@ -19,6 +19,8 @@ func Asm(sourceFilename string) {
 	// 读取源文件
 	lines := utils.LoadSourceFile(sourceFilename)
 
+	initHostApiTable()
+
 	// 词法分析
 	lexer := NewLexer()
 	lexer.lexicalAnalyze(lines)
@@ -74,6 +76,8 @@ func Asm(sourceFilename string) {
 				binary.Write(buf, binary.LittleEndian, op.opVal.(int32))
 			case OperandTypeReg:
 				binary.Write(buf, binary.LittleEndian, op.opVal.(int32))
+			case OperandTypeHostApiIndex:
+				binary.Write(buf, binary.LittleEndian, op.opVal.(int32))
 			}
 		}
 	}
@@ -105,6 +109,16 @@ func Asm(sourceFilename string) {
 			binary.Write(buf, binary.LittleEndian, symbolNode.symbolType)
 			binary.Write(buf, binary.LittleEndian, symbolNode.funcIndex)
 		}
+	}
+
+	// write HostApi Table
+	// fmt.Printf("hostApiTable:%+v\n", hostApiTable)
+	binary.Write(buf, binary.LittleEndian, hostApiTable.count)
+	for i := 0; i < int(hostApiTable.count); i++ {
+		hostApiNode := hostApiTable.hostApiNodes[i]
+		binary.Write(buf, binary.LittleEndian, hostApiNode.index)
+		binary.Write(buf, binary.LittleEndian, hostApiNode.len)
+		binary.Write(buf, binary.LittleEndian, []byte(hostApiNode.name))
 	}
 
 	fp.Write(buf.Bytes())

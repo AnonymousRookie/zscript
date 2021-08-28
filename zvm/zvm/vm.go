@@ -3,8 +3,8 @@ package zvm
 import (
 	"encoding/binary"
 	"fmt"
+	"log"
 	"os"
-
 	"zscript/utils"
 )
 
@@ -14,10 +14,11 @@ type Zvm struct {
 	funcIndexBeforeJmp  int32 // 跳转前所在函数索引
 	instrIndexBeforeJmp int32 // 跳转前的指令位置
 
-	header      Header
-	instrStream InstrStream
-	strTable    StringTable
-	funcTable   FuncTable
+	header       Header
+	instrStream  InstrStream
+	strTable     StringTable
+	funcTable    FuncTable
+	hostApiTable HostApiTable
 
 	runtimeStack *Stack
 	regRetVal    ZVal // register _RetVal
@@ -162,10 +163,31 @@ func (zvm *Zvm) Load(zseFilename string) {
 		zvm.funcTable.funcNodes = append(zvm.funcTable.funcNodes, funcNode)
 	}
 	// fmt.Printf("zvm.funcTable:%+v\n", zvm.funcTable)
+
+	// HostApi Table
+	err = binary.Read(fp, binary.LittleEndian, &zvm.hostApiTable.count)
+	utils.Check(err == nil, "read hostApiTable.count failed!")
+	for i := 0; i < int(zvm.hostApiTable.count); i++ {
+		var hostApiNode HostApiNode
+		err = binary.Read(fp, binary.LittleEndian, &hostApiNode.index)
+		utils.Check(err == nil, "read hostApiNode.index failed!")
+
+		err = binary.Read(fp, binary.LittleEndian, &hostApiNode.len)
+		utils.Check(err == nil, "read hostApiNode.len failed!")
+
+		buf := make([]byte, hostApiNode.len)
+		err = binary.Read(fp, binary.LittleEndian, &buf)
+		utils.Check(err == nil, "read hostApiNode.name failed!")
+		hostApiNode.name = string(buf)
+
+		zvm.hostApiTable.hostApiNodes = append(zvm.hostApiTable.hostApiNodes, hostApiNode)
+	}
+
+	// fmt.Printf("zvm.hostApiTable:%+v\n", zvm.hostApiTable)
 }
 
 func (zvm *Zvm) Run() {
-	if zvm.header.isExistMainFunc == false {
+	if !zvm.header.isExistMainFunc {
 		fmt.Println("main func not exist!")
 		return
 	}
@@ -211,6 +233,10 @@ func (zvm *Zvm) Run() {
 		case InstrTypeCall:
 			zvm.processCall(instr)
 
+		case InstrTypeCallHostApi:
+			zvm.processCallHostApi(instr)
+			zvm.curInstrIndex++
+
 		case InstrTypeRet:
 			exit := zvm.processRet()
 			if exit {
@@ -225,7 +251,7 @@ func (zvm *Zvm) Run() {
 
 func (zvm *Zvm) processPush(instr *Instr) {
 	op := instr.getOperantByIndex(0)
-	fmt.Printf("processPush %+v\n", op)
+	log.Printf("processPush %+v\n", op)
 
 	var zval ZVal
 	if op.opType == OperandTypeReg {
@@ -267,16 +293,16 @@ func (zvm *Zvm) processPop(instr *Instr) {
 
 	pv := zvm.runtimeStack.Pop()
 	utils.Check(pv != nil, "runtimeStack is empty, can not pop!")
-	fmt.Printf("pv: %+v\n", pv)
+	log.Printf("pv: %+v\n", pv)
 
 	*zval = pv.(ZVal)
 
 	if registerTypeT0 == regType {
-		fmt.Printf("processPop regT0:%+v\n", zvm.regT0)
+		log.Printf("processPop regT0:%+v\n", zvm.regT0)
 	} else if registerTypeT1 == regType {
-		fmt.Printf("processPop regT1:%+v\n", zvm.regT1)
+		log.Printf("processPop regT1:%+v\n", zvm.regT1)
 	} else if registerTypeRetVal == regType {
-		fmt.Printf("processPop retVal:%+v\n", zvm.regRetVal)
+		log.Printf("processPop retVal:%+v\n", zvm.regRetVal)
 	}
 }
 
@@ -304,16 +330,16 @@ func (zvm *Zvm) processMov(instr *Instr) {
 		zvm.allFuncZVal[zvm.curFuncIndex][varIndex] = zval
 	}
 
-	fmt.Printf("processMov regT0:%+v\n", zvm.regT0)
-	fmt.Printf("processMov regT1:%+v\n", zvm.regT1)
-	fmt.Printf("processMov allFuncZVal:%+v\n", zvm.allFuncZVal)
+	log.Printf("processMov regT0:%+v\n", zvm.regT0)
+	log.Printf("processMov regT1:%+v\n", zvm.regT1)
+	log.Printf("processMov allFuncZVal:%+v\n", zvm.allFuncZVal)
 }
 
 func (zvm *Zvm) processCall(instr *Instr) {
-	fmt.Printf("processCall instr:%+v\n", instr)
+	log.Printf("processCall instr:%+v\n", instr)
 
 	op := instr.getOperantByIndex(0)
-	utils.Check(op.opType == OperandTypeFuncIndex, "call expected func!")
+	utils.Check(op.opType == OperandTypeFuncIndex, "expected OperandTypeFuncIndex!")
 
 	zvm.funcIndexBeforeJmp = zvm.curFuncIndex
 	zvm.curFuncIndex = op.opVal.(int32)
@@ -322,7 +348,7 @@ func (zvm *Zvm) processCall(instr *Instr) {
 	zvm.instrIndexBeforeJmp = zvm.curInstrIndex
 	zvm.curInstrIndex = funcNode.entryPoint
 
-	fmt.Printf("processCall funcNode:%+v\n", funcNode)
+	log.Printf("processCall funcNode:%+v\n", funcNode)
 
 	// 函数参数
 	for i := 0; i < int(funcNode.symbolCount); i++ {
@@ -330,7 +356,7 @@ func (zvm *Zvm) processCall(instr *Instr) {
 		if symbolNode.symbolType == SymbolTypeParam {
 			// 传参
 			pv := zvm.runtimeStack.Pop()
-			fmt.Printf("processCall pv:%+v\n", pv)
+			log.Printf("processCall pv:%+v\n", pv)
 
 			var op Operand
 			op.opType = OperandTypeVar
@@ -340,39 +366,55 @@ func (zvm *Zvm) processCall(instr *Instr) {
 		}
 	}
 
-	fmt.Printf("processCall allFuncZVal:%+v\n", zvm.allFuncZVal)
+	log.Printf("processCall allFuncZVal:%+v\n", zvm.allFuncZVal)
+}
+
+func (zvm *Zvm) processCallHostApi(instr *Instr) {
+	log.Printf("processCallHostApi instr:%+v\n", instr)
+
+	op := instr.getOperantByIndex(0)
+	utils.Check(op.opType == OperandTypeHostApiIndex, "expected OperandTypeHostApiIndex!")
+
+	hostApiIndex := op.opVal.(int32)
+	hostApiNode := zvm.getHostApiNode(hostApiIndex)
+
+	if hostApiNode.name == "print" {
+		pv := zvm.runtimeStack.Pop()
+		log.Printf("processCallHostApi pv:%+v\n", pv)
+		fmt.Printf("%v = %v\n", pv.(ZVal).identifier, pv.(ZVal).val)
+	}
 }
 
 func (zvm *Zvm) processAdd(instr *Instr) {
 	zvm.calc(instr, "+")
 
-	fmt.Printf("processAdd regT0:%+v\n", zvm.regT0)
-	fmt.Printf("processAdd regT1:%+v\n", zvm.regT1)
-	fmt.Printf("processAdd allFuncZVal:%+v\n", zvm.allFuncZVal)
+	log.Printf("processAdd regT0:%+v\n", zvm.regT0)
+	log.Printf("processAdd regT1:%+v\n", zvm.regT1)
+	log.Printf("processAdd allFuncZVal:%+v\n", zvm.allFuncZVal)
 }
 
 func (zvm *Zvm) processMul(instr *Instr) {
 	zvm.calc(instr, "*")
 
-	fmt.Printf("processMul regT0:%+v\n", zvm.regT0)
-	fmt.Printf("processMul regT1:%+v\n", zvm.regT1)
-	fmt.Printf("processMul allFuncZVal:%+v\n", zvm.allFuncZVal)
+	log.Printf("processMul regT0:%+v\n", zvm.regT0)
+	log.Printf("processMul regT1:%+v\n", zvm.regT1)
+	log.Printf("processMul allFuncZVal:%+v\n", zvm.allFuncZVal)
 }
 
 func (zvm *Zvm) processDiv(instr *Instr) {
 	zvm.calc(instr, "/")
 
-	fmt.Printf("processDiv regT0:%+v\n", zvm.regT0)
-	fmt.Printf("processDiv regT1:%+v\n", zvm.regT1)
-	fmt.Printf("processDiv allFuncZVal:%+v\n", zvm.allFuncZVal)
+	log.Printf("processDiv regT0:%+v\n", zvm.regT0)
+	log.Printf("processDiv regT1:%+v\n", zvm.regT1)
+	log.Printf("processDiv allFuncZVal:%+v\n", zvm.allFuncZVal)
 }
 
 func (zvm *Zvm) processSub(instr *Instr) {
 	zvm.calc(instr, "-")
 
-	fmt.Printf("processSub regT0:%+v\n", zvm.regT0)
-	fmt.Printf("processSub regT1:%+v\n", zvm.regT1)
-	fmt.Printf("processSub allFuncZVal:%+v\n", zvm.allFuncZVal)
+	log.Printf("processSub regT0:%+v\n", zvm.regT0)
+	log.Printf("processSub regT1:%+v\n", zvm.regT1)
+	log.Printf("processSub allFuncZVal:%+v\n", zvm.allFuncZVal)
 }
 
 func (zvm *Zvm) calc(instr *Instr, operator string) {
@@ -398,47 +440,47 @@ func (zvm *Zvm) calc(instr *Instr, operator string) {
 	if ZValTypeInt == zval.valType {
 		if ZValTypeFloat == srcV.valType {
 			zval.valType = ZValTypeFloat
-			if "+" == operator {
+			if operator == "+" {
 				zval.val = float32(zval.val.(int32)) + srcV.val.(float32)
-			} else if "-" == operator {
+			} else if operator == "-" {
 				zval.val = float32(zval.val.(int32)) - srcV.val.(float32)
-			} else if "*" == operator {
+			} else if operator == "*" {
 				zval.val = float32(zval.val.(int32)) * srcV.val.(float32)
-			} else if "/" == operator {
+			} else if operator == "/" {
 				zval.val = float32(zval.val.(int32)) / srcV.val.(float32)
 			}
 		} else if ZValTypeInt == srcV.valType {
 			zval.valType = ZValTypeInt
-			if "+" == operator {
+			if operator == "+" {
 				zval.val = zval.val.(int32) + srcV.val.(int32)
-			} else if "-" == operator {
+			} else if operator == "-" {
 				zval.val = zval.val.(int32) - srcV.val.(int32)
-			} else if "*" == operator {
+			} else if operator == "*" {
 				zval.val = zval.val.(int32) * srcV.val.(int32)
-			} else if "/" == operator {
+			} else if operator == "/" {
 				zval.val = zval.val.(int32) / srcV.val.(int32)
 			}
 		}
 	} else if ZValTypeFloat == zval.valType {
 		zval.valType = ZValTypeFloat
 		if ZValTypeFloat == srcV.valType {
-			if "+" == operator {
+			if operator == "+" {
 				zval.val = zval.val.(float32) + srcV.val.(float32)
-			} else if "-" == operator {
+			} else if operator == "-" {
 				zval.val = zval.val.(float32) - srcV.val.(float32)
-			} else if "*" == operator {
+			} else if operator == "*" {
 				zval.val = zval.val.(float32) * srcV.val.(float32)
-			} else if "/" == operator {
+			} else if operator == "/" {
 				zval.val = zval.val.(float32) / srcV.val.(float32)
 			}
 		} else if ZValTypeInt == srcV.valType {
-			if "+" == operator {
+			if operator == "+" {
 				zval.val = zval.val.(float32) + float32(srcV.val.(int32))
-			} else if "-" == operator {
+			} else if operator == "-" {
 				zval.val = zval.val.(float32) - float32(srcV.val.(int32))
-			} else if "*" == operator {
+			} else if operator == "*" {
 				zval.val = zval.val.(float32) * float32(srcV.val.(int32))
-			} else if "/" == operator {
+			} else if operator == "/" {
 				zval.val = zval.val.(float32) / float32(srcV.val.(int32))
 			}
 		}
@@ -455,8 +497,8 @@ func (zvm *Zvm) calc(instr *Instr, operator string) {
 
 func (zvm *Zvm) processRet() bool {
 	funcNode := zvm.getFuncNodeByIndex(zvm.curFuncIndex)
-	fmt.Printf("processRet: %v\n", funcNode.funcName)
-	if "main" == funcNode.funcName {
+	log.Printf("processRet: %v\n", funcNode.funcName)
+	if funcNode.funcName == "main" {
 		// main函数返回时程序执行结束
 		return true
 	}
@@ -528,12 +570,18 @@ func (zvm *Zvm) getInstrByIndex(index int32) *Instr {
 }
 
 func (instr *Instr) getOperantByIndex(index int32) *Operand {
-	for i := 0; i < int(instr.opCount); i++ {
-		return &instr.ops[index]
-	}
-	return nil
+	return &instr.ops[index]
 }
 
 func (zvm *Zvm) getStrByIndex(index int32) string {
 	return zvm.strTable.strinfos[index].str
+}
+
+func (zvm *Zvm) getHostApiNode(index int32) *HostApiNode {
+	for i := 0; i < int(zvm.hostApiTable.count); i++ {
+		if zvm.hostApiTable.hostApiNodes[i].index == index {
+			return &zvm.hostApiTable.hostApiNodes[i]
+		}
+	}
+	return nil
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 
 	"zscript/zvm/zvm"
@@ -11,8 +12,19 @@ func printUsage() {
 	fmt.Println("Usage: zvm file.zse")
 }
 
+func init() {
+	logfilename := "./zvm.log"
+	logFile, err := os.OpenFile(logfilename, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		fmt.Println("open log file failed, err:", err)
+		return
+	}
+	log.SetOutput(logFile)
+	log.SetFlags(log.Lmicroseconds | log.Ldate)
+}
+
 func main() {
-	fmt.Println("\nzvm starting...")
+	log.Println("\nzvm starting...")
 
 	if len(os.Args) != 2 {
 		printUsage()
@@ -21,11 +33,11 @@ func main() {
 
 	filename := os.Args[1]
 
-	fmt.Println("filename: ", filename)
+	log.Println("filename: ", filename)
 
 	zvm := zvm.NewZvm()
 	zvm.Load(filename)
 	zvm.Run()
 
-	fmt.Println("\nzvm stopped!")
+	log.Println("\nzvm stopped!")
 }

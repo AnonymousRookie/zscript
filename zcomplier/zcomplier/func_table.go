@@ -48,6 +48,10 @@ func getFuncByIndex(funcIndex int) *FuncNode {
 	return nil
 }
 
+func getHostApiByIndex(index int) string {
+	return "print"
+}
+
 func printFuncTable() {
 	fmt.Println("funcTable:")
 	for _, node := range funcTable {

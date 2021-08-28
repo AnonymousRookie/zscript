@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 
 	"zscript/zcomplier/zcomplier"
@@ -9,6 +10,17 @@ import (
 
 func printUsage() {
 	fmt.Println("Usage: zscript source.zs")
+}
+
+func init() {
+	logfilename := "./zcomplier.log"
+	logFile, err := os.OpenFile(logfilename, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		fmt.Println("open log file failed, err:", err)
+		return
+	}
+	log.SetOutput(logFile)
+	log.SetFlags(log.Lmicroseconds | log.Ldate)
 }
 
 func main() {

@@ -17,6 +17,8 @@ const (
 	InstrTypePop
 
 	InstrTypeCall
+	InstrTypeCallHostApi
+
 	InstrTypeRet
 	InstrTypeExit
 )
@@ -25,13 +27,14 @@ const (
 type OperandType int32
 
 const (
-	OperandTypeInvalid   = iota
-	OperandTypeInt       // 整数
-	OperandTypeFloat     // 浮点数
-	OperandTypeString    // 字符串
-	OperandTypeVar       // 变量
-	OperandTypeFuncIndex // 函数索引
-	OperandTypeReg       // 寄存器
+	OperandTypeInvalid      = iota
+	OperandTypeInt          // 整数
+	OperandTypeFloat        // 浮点数
+	OperandTypeString       // 字符串
+	OperandTypeVar          // 变量
+	OperandTypeFuncIndex    // 函数索引
+	OperandTypeReg          // 寄存器
+	OperandTypeHostApiIndex // 主应用程序API索引
 )
 
 // .zse可执行文件格式
@@ -39,6 +42,7 @@ const (
 // Instruction Stream
 // String Table
 // Function Table
+// HostApi Table
 
 type Header struct {
 	isExistMainFunc bool  // 是否存在main函数
@@ -82,6 +86,17 @@ type FuncNode struct {
 type FuncTable struct {
 	count     int32 // 函数个数
 	funcNodes []FuncNode
+}
+
+type HostApiNode struct {
+	index int32  // 主应用程序API索引
+	len   int32  // 主应用程序API名称长度
+	name  string // 主应用程序API名称
+}
+
+type HostApiTable struct {
+	count        int32 // 主应用程序API个数
+	hostApiNodes []HostApiNode
 }
 
 type SymbolType int32

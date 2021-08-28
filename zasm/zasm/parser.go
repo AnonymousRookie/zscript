@@ -85,6 +85,10 @@ func (parser *Parser) parseInstr() {
 		case TokenTypeFunc:
 			op.opType = OperandTypeFuncIndex
 			op.opVal = parser.curFuncIndex
+		case TokenTypeHostApiPrint:
+			op.opType = OperandTypeHostApiIndex
+			hostApiNode := getHostApiNode(token.Lexem)
+			op.opVal = hostApiNode.index
 		case TokenTypeIdentifier:
 			node := getSymbol(token.Lexem, parser.curFuncIndex)
 			if node != nil {

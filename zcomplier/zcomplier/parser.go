@@ -55,6 +55,10 @@ func (parser *Parser) parseStatement() TokenType {
 			utils.Exit(token.LineNumber, "invalid identifier "+token.Lexem)
 		}
 
+	case TokenTypeHostApiPrint:
+		addICodeNodeSourceLine(parser.curScope, token.strLine)
+		parser.ParseHostApiCall(token.Lexem)
+
 	case TokenTypeReturn:
 		parser.parseReturn()
 
@@ -360,6 +364,39 @@ func (parser *Parser) parseFuncCall(funcName string) {
 
 	instrIndex := addICodeNodeInstruction(parser.curScope, InstrTypeCall)
 	addOperandFuncIndex(parser.curScope, instrIndex, funcNode.FuncIndex)
+}
+
+// 外部函数调用
+func (parser *Parser) ParseHostApiCall(hostApiName string) {
+	var token Token
+
+	token = parser.lexer.nextToken()
+	parser.lexer.checkToken(&token, TokenTypeOpenParen)
+
+	// 暂时只支持一个参数，即需要打印的变量
+	for {
+		token = parser.lexer.nextToken()
+		if token.Lexem == ")" {
+			break
+		}
+
+		symbolNode := getSymbolNode(token.Lexem, parser.curScope)
+		instrIndex := addICodeNodeInstruction(parser.curScope, InstrTypePush)
+		addOperandVar(parser.curScope, instrIndex, symbolNode.index)
+
+		token = parser.lexer.nextToken()
+		parser.lexer.checkToken(&token, TokenTypeCloseParen)
+
+		if token.Lexem == ")" {
+			break
+		}
+	}
+
+	token = parser.lexer.nextToken()
+	parser.lexer.checkToken(&token, TokenTypeSemicolon)
+
+	instrIndex := addICodeNodeInstruction(parser.curScope, InstrTypeCallHostApi)
+	addOperandHostApiIndex(parser.curScope, instrIndex, 0)
 }
 
 // 赋值语句

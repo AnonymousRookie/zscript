@@ -39,6 +39,9 @@ const (
 	TokenTypeFunc   // func
 	TokenTypeReturn // return
 
+	// 主应用程序API
+	TokenTypeHostApiPrint // print
+
 	// 分隔符
 	TokenTypeComma           // ,
 	TokenTypeSemicolon       // ;
@@ -72,6 +75,7 @@ var lexemTokenTypeMap = map[string]TokenType{
 	"var":    TokenTypeVar,
 	"func":   TokenTypeFunc,
 	"return": TokenTypeReturn,
+	"print":  TokenTypeHostApiPrint,
 	",":      TokenTypeComma,
 	";":      TokenTypeSemicolon,
 	"(":      TokenTypeOpenParen,
@@ -84,6 +88,7 @@ var tokenTypeLexemTMap = map[TokenType]string{
 	TokenTypeVar:             "var",
 	TokenTypeFunc:            "func",
 	TokenTypeReturn:          "return",
+	TokenTypeHostApiPrint:    "print",
 	TokenTypeComma:           ",",
 	TokenTypeSemicolon:       ";",
 	TokenTypeOpenParen:       "(",

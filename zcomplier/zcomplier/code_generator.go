@@ -109,6 +109,8 @@ func (gen *Generator) generateFuncNode(funcNode *FuncNode, ret *[]string) {
 						if fnode != nil {
 							str = fnode.FuncName
 						}
+					case OperandTypeHostApiIndex:
+						str = getHostApiByIndex(operand.Val.(int))
 					case OperandTypeReg:
 						regType := operand.Val.(int)
 						str, _ = regTypeMap[regType]

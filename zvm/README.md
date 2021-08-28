@@ -14,6 +14,8 @@ Instruction Stream
 String Table
 // 函数表
 Function Table
+// 主应用程序API调用表
+HostApiCall Table
 ```
 
 ### 执行.zse可执行文件

@@ -37,6 +37,10 @@ Func main
 	Pop _T0
 	Mov str, _T0
 
+	; print(str);
+	Push str
+	CallHostApi print
+
 	; a = 1.1;
 	Push 1.100
 	Pop _T0
@@ -59,6 +63,10 @@ Func main
 	Push _RetVal
 	Pop _T0
 	Mov s, _T0
+
+	; print(s);
+	Push s
+	CallHostApi print
 
 	; ret = 1 + 9 * 4 / (8 - 5) * 2 + sum(a, b) - c;
 	Push 1
@@ -103,6 +111,10 @@ Func main
 	Pop _T0
 	Mov ret, _T0
 
+	; print(ret);
+	Push ret
+	CallHostApi print
+
 	; return;
 	Ret 
 }
@@ -125,4 +137,6 @@ Instruction Stream
 String Table
 // 函数表
 Function Table
+// 主应用程序API调用表
+HostApiCall Table
 ```

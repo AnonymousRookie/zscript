@@ -39,6 +39,8 @@ const (
 	InstrTypePop
 
 	InstrTypeCall
+	InstrTypeCallHostApi
+
 	InstrTypeRet
 	InstrTypeExit
 )
@@ -54,6 +56,7 @@ const (
 	OperandTypeIdentifierIndex // 标识符索引
 	OperandTypeFuncIndex       // 函数索引
 	OperandTypeReg             // 寄存器
+	OperandTypeHostApiIndex    // 主应用程序API索引
 )
 
 // .zse可执行文件格式
@@ -61,6 +64,7 @@ const (
 // Instruction Stream
 // String Table
 // Function Table
+// HostApi Table
 
 type Header struct {
 	isExistMainFunc bool  // 是否存在main函数
@@ -106,6 +110,17 @@ type FuncTable struct {
 	funcNodes []FuncNode
 }
 
+type HostApiNode struct {
+	index int32  // 主应用程序API索引
+	len   int32  // 主应用程序API名称长度
+	name  string // 主应用程序API名称
+}
+
+type HostApiTable struct {
+	count        int32 // 主应用程序API个数
+	hostApiNodes []HostApiNode
+}
+
 type SymbolType int32
 
 const (
@@ -135,6 +150,9 @@ var strTable StringTable
 
 // Function Table
 var funcTable FuncTable
+
+// HostApi Table
+var hostApiTable HostApiTable
 
 func (funcNode *FuncNode) addFuncSymbol(identifier string, symbolType SymbolType) int32 {
 	index := len(funcNode.symbolNodes)
@@ -233,4 +251,20 @@ func addInstr(instr Instr) int32 {
 	instrStream.instrs = append(instrStream.instrs, instr)
 	instrStream.count = int32(len(instrStream.instrs))
 	return instr.index
+}
+
+func initHostApiTable() {
+	hostApiNode := HostApiNode{0, 5, "print"}
+	hostApiTable.hostApiNodes = append(hostApiTable.hostApiNodes, hostApiNode)
+	hostApiTable.count = 1
+}
+
+func getHostApiNode(name string) *HostApiNode {
+	for i := 0; i < int(hostApiTable.count); i++ {
+		hostApiNode := hostApiTable.hostApiNodes[i]
+		if hostApiNode.name == name {
+			return &hostApiNode
+		}
+	}
+	return nil
 }

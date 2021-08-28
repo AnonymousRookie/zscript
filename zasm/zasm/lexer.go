@@ -40,6 +40,9 @@ const (
 	TokenTypeFunc  // Func
 	TokenTypeParam // Param
 
+	// 主应用程序API
+	TokenTypeHostApiPrint // print
+
 	// 分隔符
 	TokenTypeComma           // ,
 	TokenTypeOpenCurlyBrace  // {
@@ -47,29 +50,31 @@ const (
 )
 
 var instrMap = map[string]InstrType{
-	"Mov":  InstrTypeMov,
-	"Add":  InstrTypeAdd,
-	"Sub":  InstrTypeSub,
-	"Mul":  InstrTypeMul,
-	"Div":  InstrTypeDiv,
-	"Jmp":  InstrTypeJmp,
-	"Push": InstrTypePush,
-	"Pop":  InstrTypePop,
-	"Call": InstrTypeCall,
-	"Ret":  InstrTypeRet,
+	"Mov":         InstrTypeMov,
+	"Add":         InstrTypeAdd,
+	"Sub":         InstrTypeSub,
+	"Mul":         InstrTypeMul,
+	"Div":         InstrTypeDiv,
+	"Jmp":         InstrTypeJmp,
+	"Push":        InstrTypePush,
+	"Pop":         InstrTypePop,
+	"Call":        InstrTypeCall,
+	"CallHostApi": InstrTypeCallHostApi,
+	"Ret":         InstrTypeRet,
 }
 
 var instrOpCountMap = map[InstrType]int{
-	InstrTypeMov:  2,
-	InstrTypeAdd:  2,
-	InstrTypeSub:  2,
-	InstrTypeMul:  2,
-	InstrTypeDiv:  2,
-	InstrTypeJmp:  1,
-	InstrTypePush: 1,
-	InstrTypePop:  1,
-	InstrTypeCall: 1,
-	InstrTypeRet:  0,
+	InstrTypeMov:         2,
+	InstrTypeAdd:         2,
+	InstrTypeSub:         2,
+	InstrTypeMul:         2,
+	InstrTypeDiv:         2,
+	InstrTypeJmp:         1,
+	InstrTypePush:        1,
+	InstrTypePop:         1,
+	InstrTypeCall:        1,
+	InstrTypeCallHostApi: 1,
+	InstrTypeRet:         0,
 }
 
 type TokenType int
@@ -85,6 +90,7 @@ var lexemTokenTypeMap = map[string]TokenType{
 	"Var":   TokenTypeVar,
 	"Func":  TokenTypeFunc,
 	"Param": TokenTypeParam,
+	"print": TokenTypeHostApiPrint,
 	",":     TokenTypeComma,
 	"{":     TokenTypeOpenCurlyBrace,
 	"}":     TokenTypeCloseCurlyBrace,
@@ -94,6 +100,7 @@ var tokenTypeLexemTMap = map[TokenType]string{
 	TokenTypeVar:             "Var",
 	TokenTypeFunc:            "Func",
 	TokenTypeParam:           "Param",
+	TokenTypeHostApiPrint:    "print",
 	TokenTypeComma:           ",",
 	TokenTypeOpenCurlyBrace:  "{",
 	TokenTypeCloseCurlyBrace: "}",

@@ -22,6 +22,7 @@ func main()
 {
     var str;
     str = "Hello zscript!";
+    print(str);
 
     var a;
     var b;
@@ -33,9 +34,11 @@ func main()
     
     var s;
     s = sum(a, b);
+    print(s);
 
     var ret;
     ret = 1 + 9 * 4 / (8 - 5) * 2 + sum(a, b) - c;
+    print(ret);
 
     return;
 }
@@ -79,6 +82,10 @@ Func main
 	Pop _T0
 	Mov str, _T0
 
+	; print(str);
+	Push str
+	CallHostApi print
+
 	; a = 1.1;
 	Push 1.100
 	Pop _T0
@@ -101,6 +108,10 @@ Func main
 	Push _RetVal
 	Pop _T0
 	Mov s, _T0
+
+	; print(s);
+	Push s
+	CallHostApi print
 
 	; ret = 1 + 9 * 4 / (8 - 5) * 2 + sum(a, b) - c;
 	Push 1
@@ -144,6 +155,10 @@ Func main
 	Push _T0
 	Pop _T0
 	Mov ret, _T0
+
+	; print(ret);
+	Push ret
+	CallHostApi print
 
 	; return;
 	Ret 
