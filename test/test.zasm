@@ -1,0 +1,111 @@
+; Functions
+Func sum
+{
+	Param b
+	Param a
+
+	; return a + b;
+	Push a
+	Push b
+	Pop _T1
+	Pop _T0
+	Add _T0, _T1
+	Push _T0
+	Pop _RetVal
+	Ret 
+}
+Func main
+{
+	Var str
+	Var a
+	Var b
+	Var c
+	Var s
+	Var ret
+
+	; str = "Hello zscript!";
+	Push "Hello zscript!"
+	Pop _T0
+	Mov str, _T0
+
+	; print(str);
+	Push str
+	CallHostApi print
+
+	; a = 1.1;
+	Push 1.100
+	Pop _T0
+	Mov a, _T0
+
+	; b = 2;
+	Push 2
+	Pop _T0
+	Mov b, _T0
+
+	; c = 3;
+	Push 3
+	Pop _T0
+	Mov c, _T0
+
+	; s = sum(a, b);
+	Push a
+	Push b
+	Call sum
+	Push _RetVal
+	Pop _T0
+	Mov s, _T0
+
+	; print(s);
+	Push s
+	CallHostApi print
+
+	; ret = 1 + 9 * 4 / (8 - 5) * 2 + sum(a, b) - c;
+	Push 1
+	Push 9
+	Push 4
+	Pop _T1
+	Pop _T0
+	Mul _T0, _T1
+	Push _T0
+	Push 8
+	Push 5
+	Pop _T1
+	Pop _T0
+	Sub _T0, _T1
+	Push _T0
+	Pop _T1
+	Pop _T0
+	Div _T0, _T1
+	Push _T0
+	Push 2
+	Pop _T1
+	Pop _T0
+	Mul _T0, _T1
+	Push _T0
+	Pop _T1
+	Pop _T0
+	Add _T0, _T1
+	Push _T0
+	Push a
+	Push b
+	Call sum
+	Push _RetVal
+	Pop _T1
+	Pop _T0
+	Add _T0, _T1
+	Push _T0
+	Push c
+	Pop _T1
+	Pop _T0
+	Sub _T0, _T1
+	Push _T0
+	Pop _T0
+	Mov ret, _T0
+
+	; print(ret);
+	Push ret
+	CallHostApi print
+
+	; return;
+	Ret 
+}
